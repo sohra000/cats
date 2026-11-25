@@ -1,233 +1,2117 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Две кошки против Бабушки</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #2c221e;
-      color: #fff;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #hud {
-      width: 800px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 16px;
-      background: #3d302b;
-      border-radius: 10px 10px 0 0;
-      font-size: 18px;
-      font-weight: bold;
-    }
-    .p1-info { color: #ffb347; }
-    .p2-info { color: #87cefa; }
-    canvas {
-      background: #e6d5b8;
-      border: 4px solid #3d302b;
-      border-radius: 0 0 10px 10px;
-      display: block;
-    }
-    #controls {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ccc;
-      display: flex;
-      gap: 30px;
-    }
-    #overlay {
-      position: absolute;
-      background: rgba(25, 20, 18, 0.9);
-      padding: 30px 40px;
-      border-radius: 14px;
-      text-align: center;
-      border: 2px solid #ffb347;
-    }
-    #overlay h1 { margin-bottom: 10px; font-size: 28px; }
-    #overlay p { margin-bottom: 20px; color: #ddd; line-height: 1.5; }
-    button {
-      background: #ff8c42;
-      color: #fff;
-      border: none;
-      padding: 12px 26px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:hover { background: #ff7315; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Коты против Бабки — Кооперативный стелс-экшен</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Rubik', sans-serif;
+            background-color: #14121d;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .btn-cartoon {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+        }
+        .btn-cartoon:active:not(:disabled) {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+        }
+        .btn-cartoon:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .glass-panel {
+            background: rgba(26, 23, 38, 0.92);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+        }
+        /* Сенсорный джойстик */
+        #joystickZone {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            z-index: 30;
+            display: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(251, 191, 36, 0.85);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+        @media (pointer: coarse) {
+            #joystickZone, #mobileActions {
+                display: flex !important;
+            }
+        }
+    </style>
 </head>
 <body>
 
-  <div id="hud">
-    <div class="p1-info">🐱 Рыжик: <span id="score1">0</span></div>
-    <div>⏱ Время: <span id="timer">0</span>с</div>
-    <div class="p2-info">🐱 Дымок: <span id="score2">0</span></div>
-  </div>
+    <!-- Игровой холст -->
+    <canvas id="gameCanvas"></canvas>
 
-  <canvas id="game" width="800" height="540"></canvas>
+    <!-- Верхний HUD во время игры -->
+    <div id="gameHud" class="hidden fixed top-0 left-0 right-0 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-20">
+        <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl shadow-lg pointer-events-auto">
+            <span class="text-xl sm:text-2xl">🐟</span>
+            <div>
+                <div class="text-[11px] uppercase tracking-wider text-slate-400">Собрано вкусняшек</div>
+                <div class="text-base sm:text-lg font-black text-amber-400"><span id="hudFoodCount">0</span> / <span id="hudFoodTotal">15</span></div>
+            </div>
+        </div>
 
-  <div id="controls">
-    <span><b style="color:#ffb347">Рыжик:</b> W A S D</span>
-    <span><b style="color:#87cefa">Дымок:</b> Стрелки ↑ ↓ ← →</span>
-    <span>🐟 Собирайте рыбку и спасайте друг друга касанием!</span>
-  </div>
+        <div id="hudRoomBadge" class="hidden sm:flex items-center gap-2 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl text-xs text-slate-300 pointer-events-auto">
+            <span>Комната: <strong id="hudRoomCode" class="text-amber-400 tracking-widest">----</strong></span>
+        </div>
 
-  <div id="overlay">
-    <h1 id="title">Кошачий побег! 🐾</h1>
-    <p id="desc">Убегайте от бабушки, прячьтесь за мебелью и собирайте рыбок.<br>Если бабушка поймает одного — второй может его спасти, коснувшись!</p>
-    <button onclick="startGame()">Играть</button>
-  </div>
+        <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl shadow-lg pointer-events-auto">
+            <div class="w-24 sm:w-32">
+                <div class="flex justify-between text-[11px] text-slate-300 mb-1">
+                    <span>⚡ Лапки</span>
+                    <span id="hudStaminaText">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="hudStaminaBar" class="h-full bg-emerald-400 transition-all duration-75" style="width: 100%"></div>
+                </div>
+            </div>
+            <button id="btnSoundToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-lg" title="Звук">🔊</button>
+            <button id="btnLeaveGame" class="px-3 py-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-xs font-bold">Выйти</button>
+        </div>
+    </div>
 
-<script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const overlay = document.getElementById('overlay');
+    <!-- Подсказка управления внизу экрана -->
+    <div id="controlsHint" class="hidden md:flex fixed bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/80 border border-white/10 px-4 py-2 rounded-full text-xs text-slate-300 gap-4 z-20 pointer-events-none">
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-white">WASD / Стрелки</kbd> Бежать</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-white">Shift / Пробел</kbd> Спринт</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300">E</kbd> Мяукнуть (отвлечь бабку)</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-emerald-300">R / Рядом</kbd> Спасти друга</span>
+    </div>
 
-const keys = {};
-window.addEventListener('keydown', e => {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
-    e.preventDefault();
-  }
-  keys[e.code] = true;
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
+    <!-- Мобильный джойстик и кнопки -->
+    <div id="joystickZone"><div id="joystickKnob"></div></div>
+    <div id="mobileActions" class="hidden fixed bottom-6 right-6 flex-col gap-3 z-30">
+        <button id="btnMobileMeow" class="btn-cartoon w-16 h-16 rounded-full bg-amber-500 text-slate-950 font-black text-sm shadow-lg flex flex-col items-center justify-center">
+            <span>🐱</span><span>МЯУ!</span>
+        </button>
+        <button id="btnMobileSprint" class="btn-cartoon w-16 h-16 rounded-full bg-emerald-500 text-slate-950 font-black text-sm shadow-lg flex flex-col items-center justify-center">
+            <span>⚡</span><span>БЕГ</span>
+        </button>
+    </div>
 
-// Мебель (препятствия)
-const walls = [
-  { x: 140, y: 110, w: 130, h: 70, label: 'Диван' },
-  { x: 530, y: 110, w: 130, h: 70, label: 'Стол' },
-  { x: 340, y: 230, w: 120, h: 80, label: 'Ковёр-гора' },
-  { x: 140, y: 360, w: 130, h: 70, label: 'Шкаф' },
-  { x: 530, y: 360, w: 130, h: 70, label: 'Кровать' }
-];
+    <!-- Всплывающее уведомление (вместо alert) -->
+    <div id="toastBox" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 -translate-y-3">
+        <div id="toastText" class="bg-slate-900/95 border-2 border-amber-400 text-white px-5 py-2.5 rounded-2xl font-bold text-sm shadow-2xl"></div>
+    </div>
 
-let cats, granny, fish, startTime, running = false;
+    <!-- ГЛАВНОЕ МЕНЮ / ЛОББИ -->
+    <div id="lobbyOverlay" class="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto">
+        <div class="glass-panel w-full max-w-xl rounded-3xl p-5 sm:p-7 my-auto">
+            <!-- Заголовок -->
+            <div class="text-center mb-5">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold mb-2">
+                    🐾 КООПЕРАТИВНЫЙ ПОБЕГ НА ДВОИХ
+                </div>
+                <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-white">
+                    КОТЫ ПРОТИВ <span class="text-rose-500">БАБКИ</span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1">
+                    Стащите всю еду из квартиры и не попадитесь под заряд соли из двустволки!
+                </p>
+            </div>
 
-function startGame() {
-  cats = [
-    { x: 70, y: 70, r: 16, speed: 3.4, color: '#ff9f1c', score: 0, frozen: false, up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD' },
-    { x: 730, y: 470, r: 16, speed: 3.4, color: '#4ea8de', score: 0, frozen: false, up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }
-  ];
-  granny = { x: 400, y: 60, r: 22, speed: 2.0 };
-  fish = spawnFish();
-  startTime = Date.now();
-  running = true;
-  overlay.style.display = 'none';
-  updateHUD();
-  requestAnimationFrame(loop);
-}
+            <!-- Экран 1: Настройка кота и выбор режима -->
+            <div id="stepSetup" class="space-y-4">
+                <div class="bg-slate-900/70 p-4 rounded-2xl border border-white/10 space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Кличка твоего кота</label>
+                        <input id="inputCatName" type="text" maxlength="14" value="Рыжик" placeholder="Введи имя кота..."
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white font-bold focus:outline-none focus:border-amber-400">
+                    </div>
 
-function spawnFish() {
-  let fx, fy, valid;
-  do {
-    valid = true;
-    fx = 40 + Math.random() * (canvas.width - 80);
-    fy = 40 + Math.random() * (canvas.height - 80);
-    for (const w of walls) {
-      if (fx > w.x - 20 && fx < w.x + w.w + 20 && fy > w.y - 20 && fy  !c.frozen);
-  if (activeCats.length === 0) {
-    endGame(elapsed);
-    return;
-  }
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Выбери окрас</label>
+                        <div id="skinSelector" class="grid grid-cols-4 gap-2">
+                            <button type="button" data-skin="ginger" class="skin-btn p-2 rounded-xl border-2 border-amber-400 bg-slate-800 flex flex-col items-center gap-1">
+                                <span class="w-6 h-6 rounded-full bg-orange-500 border-2 border-orange-200"></span>
+                                <span class="text-xs font-bold">Рыжик</span>
+                            </button>
+                            <button type="button" data-skin="smoke" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
+                                <span class="w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-300"></span>
+                                <span class="text-xs font-bold">Дымок</span>
+                            </button>
+                            <button type="button" data-skin="snow" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
+                                <span class="w-6 h-6 rounded-full bg-slate-100 border-2 border-pink-300"></span>
+                                <span class="text-xs font-bold">Снежок</span>
+                            </button>
+                            <button type="button" data-skin="tuxedo" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
+                                <span class="w-6 h-6 rounded-full bg-zinc-900 border-2 border-white"></span>
+                                <span class="text-xs font-bold">Маркиз</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-  let target = activeCats[0];
-  if (activeCats.length > 1 && dist(granny, activeCats[1]) < dist(granny, activeCats[0])) {
-    target = activeCats[1];
-  }
+                <!-- Онлайн кнопки -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button id="btnCreateRoom" class="btn-cartoon w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-2">
+                        <span>🏠</span> Создать комнату
+                    </button>
 
-  const angle = Math.atan2(target.y - granny.y, target.x - granny.x);
-  moveWithWalls(granny, Math.cos(angle) * granny.speed, Math.sin(angle) * granny.speed);
+                    <div class="flex gap-2">
+                        <input id="inputJoinCode" type="text" maxlength="4" placeholder="КОД"
+                            class="w-24 px-3 py-3 rounded-2xl bg-slate-800 border border-white/15 text-center font-black uppercase tracking-widest text-amber-300 focus:outline-none focus:border-amber-400">
+                        <button id="btnJoinRoom" class="btn-cartoon flex-1 py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm">
+                            Войти →
+                        </button>
+                    </div>
+                </div>
 
-  // Поимка кота
-  for (const c of activeCats) {
-    if (dist(granny, c) < granny.r + c.r - 4) {
-      c.frozen = true;
-    }
-  }
-}
+                <!-- Соло / тест с ботом -->
+                <div class="pt-1">
+                    <button id="btnSoloMode" class="btn-cartoon w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2">
+                        <span>🎮</span> Играть одному (с котом-ботом напарником)
+                    </button>
+                </div>
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                <!-- Статус подключения -->
+                <div id="networkStatusLine" class="text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <span id="netDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="netStatusText">Подключение к облаку комнат...</span>
+                </div>
+            </div>
 
-  // Пол (плитка)
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  for (let x = 0; x < canvas.width; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-  }
-  for (let y = 0; y < canvas.height; y += 40) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-  }
+            <!-- Экран 2: Комната ожидания (Лобби с кодом) -->
+            <div id="stepWaitingRoom" class="hidden space-y-4">
+                <div class="bg-slate-900/90 border-2 border-amber-400/40 rounded-2xl p-4 text-center">
+                    <div class="text-xs uppercase tracking-wider text-slate-400">Код твоей комнаты — отправь другу:</div>
+                    <div class="flex items-center justify-center gap-3 mt-1.5">
+                        <span id="displayRoomCode" class="text-3xl sm:text-4xl font-black tracking-[0.25em] text-amber-400">----</span>
+                        <button id="btnCopyCode" class="btn-cartoon px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold text-white">
+                            📋 Скопировать
+                        </button>
+                    </div>
+                </div>
 
-  // Мебель
-  for (const w of walls) {
-    ctx.fillStyle = '#8d6e63';
-    ctx.fillRect(w.x, w.y, w.w, w.h);
-    ctx.strokeStyle = '#5d4037';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(w.x, w.y, w.w, w.h);
-    ctx.fillStyle = '#efebe9';
-    ctx.font = '13px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(w.label, w.x + w.w / 2, w.y + w.h / 2 + 4);
-  }
+                <!-- Список игроков в комнате -->
+                <div class="space-y-2">
+                    <div class="text-xs font-bold uppercase text-slate-400">Коты в банде (нужно 2 игрока):</div>
+                    <div id="lobbyPlayersList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Заполняется через JS -->
+                    </div>
+                </div>
 
-  // Рыбка
-  ctx.font = '24px serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🐟', fish.x, fish.y + 8);
+                <div class="flex gap-3 pt-2">
+                    <button id="btnBackToSetup" class="btn-cartoon px-4 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-sm font-bold">
+                        ← Назад
+                    </button>
+                    <button id="btnStartOnlineGame" disabled class="btn-cartoon flex-1 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base">
+                        Ждём второго кота...
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-  // Кошки
-  for (const c of cats) {
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-    ctx.fillStyle = c.frozen ? '#90a4ae' : c.color;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#222';
-    ctx.stroke();
+    <!-- ЭКРАН ОКОНЧАНИЯ ИГРЫ (ПОБЕДА / ПОРАЖЕНИЕ) -->
+    <div id="endGameOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel max-w-md w-full rounded-3xl p-6 text-center space-y-4">
+            <div id="endGameEmoji" class="text-6xl">🏆</div>
+            <h2 id="endGameTitle" class="text-2xl sm:text-3xl font-black text-amber-400">ПОБЕДА!</h2>
+            <p id="endGameDesc" class="text-sm text-slate-300">Коты утащили все запасы из холодильника и скрылись в закате!</p>
+            <div class="bg-slate-900/80 rounded-2xl p-3 text-sm flex justify-around border border-white/10">
+                <div>
+                    <div class="text-slate-400 text-xs">Собрано еды</div>
+                    <div id="endStatFood" class="font-black text-lg text-amber-400">15 / 15</div>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-xs">Время</div>
+                    <div id="endStatTime" class="font-black text-lg text-emerald-400">01:24</div>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button id="btnPlayAgain" class="btn-cartoon flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+                    🔄 Сыграть ещё раз
+                </button>
+                <button id="btnEndToMenu" class="btn-cartoon px-4 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 font-bold text-sm">
+                    В меню
+                </button>
+            </div>
+        </div>
+    </div>
 
-    ctx.font = '20px serif';
-    ctx.fillText(c.frozen ? '🕸️' : '🐱', c.x, c.y + 7);
-  }
+    <!-- ОСНОВНОЙ СКРИПТ ИГРЫ + FIREBASE МУЛЬТИПЛЕЕР -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  // Бабушка
-  ctx.beginPath();
-  ctx.arc(granny.x, granny.y, granny.r, 0, Math.PI * 2);
-  ctx.fillStyle = '#d32f2f';
-  ctx.fill();
-  ctx.font = '28px serif';
-  ctx.fillText('👵', granny.x, granny.y + 9);
-}
+        // ==========================================
+        // 1. ЗВУКОВОЙ ДВИЖОК (WEB AUDIO API)
+        // ==========================================
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playMeow(pitch = 520) {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(pitch * 0.85, now);
+                osc.frequency.exponentialRampToValueAtTime(pitch * 1.35, now + 0.14);
+                osc.frequency.exponentialRampToValueAtTime(pitch * 0.75, now + 0.42);
 
-function updateHUD() {
-  document.getElementById('score1').textContent = cats[0].score;
-  document.getElementById('score2').textContent = cats[1].score;
-}
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(0.22, now + 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
-function endGame(seconds) {
-  running = false;
-  document.getElementById('title').textContent = 'Бабушка всех поймала! 🧹';
-  document.getElementById('desc').innerHTML =
-    `Вы продержались <b>${seconds} сек.</b><br>` +
-    `Рыжик поймал рыбок: <b>${cats[0].score}</b> | Дымок поймал рыбок: <b>${cats[1].score}</b>`;
-  overlay.style.display = 'block';
-}
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.46);
+            }
+            playEat() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                [580, 760, 980].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.055);
+                    gain.gain.setValueAtTime(0.16, now + i * 0.055);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.11);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.055);
+                    osc.stop(now + i * 0.055 + 0.12);
+                });
+            }
+            playGrannyAlert() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(175, now);
+                osc.frequency.linearRampToValueAtTime(125, now + 0.28);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.31);
+            }
+            playShotgun() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                // Белый шум для выстрела
+                const bufferSize = this.ctx.sampleRate * 0.45;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.11));
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
 
-function loop() {
-  if (!running) return;
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-</script>
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1100, now);
+                filter.frequency.exponentialRampToValueAtTime(140, now + 0.42);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.55, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+            playRevive() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                [440, 554, 659, 880].forEach((f, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.26);
+                });
+            }
+            playWin() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
+                notes.forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + i * 0.12);
+                    gain.gain.setValueAtTime(0.18, now + i * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.28);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.12);
+                    osc.stop(now + i * 0.12 + 0.3);
+                });
+            }
+        }
+        const sfx = new SoundFX();
+
+        // ==========================================
+        // 2. КОНФИГУРАЦИЯ КАРТЫ КВАРТИРЫ (1600 x 1100)
+        // ==========================================
+        const MAP_W = 1600;
+        const MAP_H = 1100;
+        const TOTAL_FOOD = 15;
+
+        const CAT_SKINS = {
+            ginger: { name: 'Рыжик', body: '#f97316', stripe: '#c2410c', ear: '#fed7aa' },
+            smoke:  { name: 'Дымок', body: '#64748b', stripe: '#334155', ear: '#cbd5e1' },
+            snow:   { name: 'Снежок', body: '#f8fafc', stripe: '#cbd5e1', ear: '#fbcfe8' },
+            tuxedo: { name: 'Маркиз', body: '#27272a', stripe: '#ffffff', ear: '#f472b6' }
+        };
+
+        // Комнаты для отрисовки полов и подписей
+        const ROOMS = [
+            { id: 'kitchen',  name: 'КУХНЯ',     x: 40,   y: 40,  w: 520, h: 460, floor: 'tile_kitchen' },
+            { id: 'hallway',  name: 'КОРИДОР',   x: 560,  y: 40,  w: 440, h: 580, floor: 'wood_hall' },
+            { id: 'bathroom', name: 'ВАННАЯ',    x: 1000, y: 40,  w: 560, h: 460, floor: 'tile_bath' },
+            { id: 'living',   name: 'ГОСТИНАЯ',  x: 40,   y: 500, w: 740, h: 560, floor: 'carpet_living' },
+            { id: 'bedroom',  name: 'СПАЛЬНЯ',   x: 780,  y: 620, w: 780, h: 440, floor: 'parquet_bed' }
+        ];
+
+        // Стены квартиры с дверными проёмами (твёрдые препятствия + блокируют обзор бабки)
+        const WALLS = [
+            // Внешний периметр
+            { x: 20, y: 20, w: 1560, h: 24 },
+            { x: 20, y: 1056, w: 1560, h: 24 },
+            { x: 20, y: 20, w: 24, h: 1060 },
+            { x: 1556, y: 20, w: 24, h: 1060 },
+
+            // Между Кухней и Коридором (x = 560, проём y: 230..370)
+            { x: 550, y: 40, w: 20, h: 190 },
+            { x: 550, y: 370, w: 20, h: 140 },
+
+            // Между Коридором и Ванной (x = 1000, проём y: 220..350)
+            { x: 990, y: 40, w: 20, h: 180 },
+            { x: 990, y: 350, w: 20, h: 160 },
+
+            // Между Кухней и Гостиной (y = 500, проём x: 220..370)
+            { x: 40, y: 490, w: 180, h: 20 },
+            { x: 370, y: 490, w: 200, h: 20 },
+
+            // Между Ванной и Спальней (y = 500, глухая стена справа, проход в Спальню из Коридора)
+            { x: 990, y: 490, w: 570, h: 20 },
+
+            // Между Коридором и Гостиной/Спальней (y = 620, проёмы x: 600..730 и x: 830..960)
+            { x: 550, y: 610, w: 50, h: 20 },
+            { x: 730, y: 610, w: 100, h: 20 },
+            { x: 960, y: 610, w: 50, h: 20 },
+
+            // Между Гостиной и Спальней (x = 780, проём y: 800..940)
+            { x: 770, y: 620, w: 20, h: 180 },
+            { x: 770, y: 940, w: 20, h: 120 }
+        ];
+
+        // Мебель: часть препятствия (solid: true), часть укрытия под которыми можно прятаться (hideout: true)
+        const FURNITURE = [
+            // Кухня
+            { name: 'Холодильник', x: 65, y: 65, w: 95, h: 95, color: '#e2e8f0', border: '#94a3b8', solid: true, hideout: false, icon: '❄️' },
+            { name: 'Плита', x: 170, y: 65, w: 110, h: 75, color: '#cbd5e1', border: '#64748b', solid: true, hideout: false, icon: '🍳' },
+            { name: 'Кухонный стол', x: 220, y: 230, w: 170, h: 110, color: '#b45309', border: '#78350f', solid: false, hideout: true, icon: '🍽️' },
+
+            // Коридор
+            { name: 'Тумба с обувью', x: 660, y: 60, w: 190, h: 60, color: '#92400e', border: '#451a03', solid: true, hideout: false, icon: '👟' },
+            { name: 'Комод', x: 585, y: 420, w: 70, h: 140, color: '#a16207', border: '#713f12', solid: true, hideout: false, icon: '🪴' },
+
+            // Ванная
+            { name: 'Ванна', x: 1330, y: 65, w: 200, h: 115, color: '#f0f9ff', border: '#38bdf8', solid: true, hideout: false, icon: '🛁' },
+            { name: 'Стиралка', x: 1035, y: 65, w: 85, h: 85, color: '#f1f5f9', border: '#94a3b8', solid: true, hideout: false, icon: '🌀' },
+            { name: 'Корзина белья', x: 1420, y: 360, w: 100, h: 95, color: '#d97706', border: '#92400e', solid: false, hideout: true, icon: '🧺' },
+
+            // Гостиная
+            { name: 'Большой диван', x: 80, y: 660, w: 110, h: 260, color: '#dc2626', border: '#991b1b', solid: true, hideout: false, icon: '🛋️' },
+            { name: 'Журнальный столик', x: 260, y: 730, w: 120, h: 140, color: '#d97706', border: '#78350f', solid: false, hideout: true, icon: '☕' },
+            { name: 'Телевизор', x: 540, y: 720, w: 65, h: 190, color: '#1e293b', border: '#0f172a', solid: true, hideout: false, icon: '📺' },
+
+            // Спальня
+            { name: 'Двуспальная кровать', x: 1250, y: 720, w: 260, h: 220, color: '#4f46e5', border: '#312e81', solid: false, hideout: true, icon: '🛏️' },
+            { name: 'Шкаф-купе', x: 920, y: 965, w: 240, h: 75, color: '#78350f', border: '#451a03', solid: true, hideout: false, icon: '🚪' }
+        ];
+
+        // Точки спавна вкусняшек
+        const FOOD_SPAWNS = [
+            { x: 120, y: 200, emoji: '🐟' },
+            { x: 460, y: 120, emoji: '🥛' },
+            { x: 300, y: 285, emoji: '🍗' },
+            { x: 470, y: 420, emoji: '🌭' },
+            { x: 750, y: 180, emoji: '🧀' },
+            { x: 880, y: 470, emoji: '🐟' },
+            { x: 1150, y: 140, emoji: '🥛' },
+            { x: 1250, y: 380, emoji: '🐟' },
+            { x: 1470, y: 405, emoji: '🌭' },
+            { x: 140, y: 580, emoji: '🍗' },
+            { x: 320, y: 800, emoji: '🧀' },
+            { x: 130, y: 980, emoji: '🐟' },
+            { x: 670, y: 950, emoji: '🥛' },
+            { x: 1050, y: 720, emoji: '🌭' },
+            { x: 1380, y: 830, emoji: '🍗' }
+        ];
+
+        // Маршрут патрулирования Бабки
+        const GRANNY_WAYPOINTS = [
+            { x: 760, y: 300 },
+            { x: 380, y: 300 },
+            { x: 295, y: 450 },
+            { x: 300, y: 650 },
+            { x: 660, y: 660 },
+            { x: 890, y: 660 },
+            { x: 1120, y: 820 },
+            { x: 890, y: 660 },
+            { x: 760, y: 300 },
+            { x: 1180, y: 280 }
+        ];
+
+        const GRANNY_PHRASES = [
+            'А ну брысь, паразиты!',
+            'Я вам щас хвосты накручу!',
+            'Куда по столу, окаянные?!',
+            'Моя сметана! Стой, кому говорю!',
+            'Щас солью заряжу!',
+            'Вот я вас веником!'
+        ];
+
+        // ==========================================
+        // 3. СОСТОЯНИЕ ИГРЫ И МУЛЬТИПЛЕЕР
+        // ==========================================
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'cats-vs-granny-default';
+        let firebaseReady = false;
+
+        let gameMode = 'none'; // 'solo' | 'online'
+        let isHost = false;
+        let roomCode = '';
+        let myPlayerId = '';
+        let selectedSkin = 'ginger';
+        let roomUnsubscribe = null;
+        let lastSyncSent = 0;
+
+        // Локальное состояние матча
+        const state = {
+            status: 'lobby', // 'lobby' | 'playing' | 'won' | 'lost'
+            startTime: 0,
+            elapsedSec: 0,
+            players: {}, // id -> { id, name, skin, x, y, vx, vy, angle, stamina, downed, reviveProgress, hidden, meowTimer, animPhase }
+            foods: [],   // { id, x, y, emoji, collected }
+            granny: {
+                x: 780,
+                y: 300,
+                angle: 0,
+                speed: 145,
+                alertLevel: 0, // 0..100
+                mode: 'patrol', // 'patrol' | 'investigate' | 'chase' | 'aiming' | 'cooldown'
+                targetX: 380,
+                targetY: 300,
+                waypointIdx: 1,
+                aimTimer: 0,
+                aimAngle: 0,
+                phrase: '',
+                phraseTimer: 0
+            },
+            particles: [],
+            pellets: [],
+            soundRings: [],
+            camera: { x: 0, y: 0, shake: 0 }
+        };
+
+        // ==========================================
+        // 4. ИНИЦИАЛИЗАЦИЯ FIREBASE (С ЗАЩИТОЙ ОТ ОФЛАЙНА)
+        // ==========================================
+        async function initNetwork() {
+            const dot = document.getElementById('netDot');
+            const text = document.getElementById('netStatusText');
+            try {
+                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                    throw new Error('Локальный запуск без облачного конфига');
+                }
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+                myPlayerId = currentUser ? currentUser.uid : ('cat_' + Math.random().toString(36).slice(2, 9));
+                firebaseReady = true;
+
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                text.textContent = 'Онлайн готов! Создай комнату или введи код друга';
+            } catch (err) {
+                console.warn('Режим без облака:', err.message);
+                myPlayerId = 'local_' + Math.random().toString(36).slice(2, 9);
+                firebaseReady = false;
+                dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                text.textContent = 'Автономный режим (доступна игра с ботом-напарником)';
+            }
+        }
+        initNetwork();
+
+        function getRoomDocRef(code) {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'cat_rooms', code);
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let res = '';
+            for (let i = 0; i < 4; i++) {
+                res += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return res;
+        }
+
+        // ==========================================
+        // 5. УПРАВЛЕНИЕ ЛОББИ И UI
+        // ==========================================
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            const txt = document.getElementById('toastText');
+            txt.textContent = msg;
+            box.classList.remove('opacity-0', '-translate-y-3');
+            box.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                box.classList.add('opacity-0', '-translate-y-3');
+                box.classList.remove('opacity-100', 'translate-y-0');
+            }, 2600);
+        }
+
+        // Выбор окраса кота
+        document.querySelectorAll('.skin-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                sfx.init();
+                sfx.playMeow(580);
+                document.querySelectorAll('.skin-btn').forEach(b => {
+                    b.classList.remove('border-amber-400', 'bg-slate-800');
+                    b.classList.add('border-transparent', 'bg-slate-800/70');
+                });
+                btn.classList.remove('border-transparent', 'bg-slate-800/70');
+                btn.classList.add('border-amber-400', 'bg-slate-800');
+                selectedSkin = btn.dataset.skin;
+            });
+        });
+
+        // Создать комнату
+        document.getElementById('btnCreateRoom').addEventListener('click', async () => {
+            sfx.init();
+            if (!firebaseReady) {
+                showToast('Для онлайна запусти игру в облаке или нажми «Играть одному»!');
+                return;
+            }
+            const catName = (document.getElementById('inputCatName').value.trim() || 'Рыжик').slice(0, 14);
+            roomCode = generateRoomCode();
+            isHost = true;
+            gameMode = 'online';
+
+            const initialRoom = {
+                code: roomCode,
+                status: 'waiting',
+                hostId: myPlayerId,
+                createdAt: Date.now(),
+                players: {
+                    [myPlayerId]: {
+                        id: myPlayerId,
+                        name: catName,
+                        skin: selectedSkin,
+                        x: 640,
+                        y: 150,
+                        angle: 0,
+                        stamina: 100,
+                        downed: false,
+                        reviveProgress: 0,
+                        hidden: false,
+                        meowTimer: 0
+                    }
+                },
+                foods: FOOD_SPAWNS.map((f, idx) => ({ id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false })),
+                granny: null
+            };
+
+            try {
+                await setDoc(getRoomDocRef(roomCode), initialRoom);
+                openWaitingRoom(roomCode);
+                subscribeToRoom(roomCode);
+                sfx.playMeow(620);
+            } catch (e) {
+                console.error(e);
+                showToast('Ошибка создания комнаты. Попробуй ещё раз!');
+            }
+        });
+
+        // Войти в комнату по коду
+        document.getElementById('btnJoinRoom').addEventListener('click', async () => {
+            sfx.init();
+            if (!firebaseReady) {
+                showToast('Онлайн недоступен в автономном файле — жми «Играть одному»!');
+                return;
+            }
+            const code = document.getElementById('inputJoinCode').value.trim().toUpperCase();
+            if (code.length < 4) {
+                showToast('Введи 4-значный код комнаты!');
+                return;
+            }
+            const catName = (document.getElementById('inputCatName').value.trim() || 'Дымок').slice(0, 14);
+
+            try {
+                const snap = await getDoc(getRoomDocRef(code));
+                if (!snap.exists()) {
+                    showToast('Комната с кодом ' + code + ' не найдена!');
+                    return;
+                }
+                const data = snap.data();
+                const playerIds = Object.keys(data.players || {});
+                if (playerIds.length >= 2 && !data.players[myPlayerId]) {
+                    showToast('В этой комнате уже два кота!');
+                    return;
+                }
+
+                roomCode = code;
+                isHost = data.hostId === myPlayerId;
+                gameMode = 'online';
+
+                await updateDoc(getRoomDocRef(code), {
+                    [`players.${myPlayerId}`]: {
+                        id: myPlayerId,
+                        name: catName,
+                        skin: selectedSkin,
+                        x: 720,
+                        y: 150,
+                        angle: 0,
+                        stamina: 100,
+                        downed: false,
+                        reviveProgress: 0,
+                        hidden: false,
+                        meowTimer: 0
+                    }
+                });
+
+                openWaitingRoom(code);
+                subscribeToRoom(code);
+                sfx.playMeow(500);
+            } catch (e) {
+                console.error(e);
+                showToast('Не удалось подключиться к комнате');
+            }
+        });
+
+        // Копировать код комнаты
+        document.getElementById('btnCopyCode').addEventListener('click', () => {
+            const tempInput = document.createElement('input');
+            tempInput.value = roomCode;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('Код ' + roomCode + ' скопирован! Отправь его другу 🐾');
+        });
+
+        function openWaitingRoom(code) {
+            document.getElementById('stepSetup').classList.add('hidden');
+            document.getElementById('stepWaitingRoom').classList.remove('hidden');
+            document.getElementById('displayRoomCode').textContent = code;
+        }
+
+        document.getElementById('btnBackToSetup').addEventListener('click', () => {
+            if (roomUnsubscribe) {
+                roomUnsubscribe();
+                roomUnsubscribe = null;
+            }
+            gameMode = 'none';
+            document.getElementById('stepWaitingRoom').classList.add('hidden');
+            document.getElementById('stepSetup').classList.remove('hidden');
+        });
+
+        // Подписка на обновления комнаты
+        function subscribeToRoom(code) {
+            if (roomUnsubscribe) roomUnsubscribe();
+            roomUnsubscribe = onSnapshot(getRoomDocRef(code), (snap) => {
+                if (!snap.exists()) return;
+                const data = snap.data();
+                const playersObj = data.players || {};
+                const pList = Object.values(playersObj);
+
+                // Обновляем список игроков в лобби
+                const listEl = document.getElementById('lobbyPlayersList');
+                listEl.innerHTML = '';
+                pList.forEach(p => {
+                    const skinInfo = CAT_SKINS[p.skin] || CAT_SKINS.ginger;
+                    const card = document.createElement('div');
+                    card.className = 'flex items-center gap-3 bg-slate-800/90 border border-white/15 p-3 rounded-2xl';
+                    card.innerHTML = `
+                        <span class="w-8 h-8 rounded-full border-2 border-white flex-shrink-0" style="background:${skinInfo.body}"></span>
+                        <div class="min-w-0">
+                            <div class="font-bold text-sm text-white truncate">${p.name} ${p.id === data.hostId ? '👑' : ''}</div>
+                            <div class="text-xs text-slate-400">${skinInfo.name}</div>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+
+                if (pList.length < 2) {
+                    const empty = document.createElement('div');
+                    empty.className = 'flex items-center justify-center gap-2 border-2 border-dashed border-slate-700 p-3 rounded-2xl text-xs text-slate-400';
+                    empty.textContent = '⏳ Ожидаем второго кота...';
+                    listEl.appendChild(empty);
+                }
+
+                const startBtn = document.getElementById('btnStartOnlineGame');
+                if (isHost) {
+                    if (pList.length >= 2) {
+                        startBtn.disabled = false;
+                        startBtn.textContent = '🚀 НАЧАТЬ ОХОТУ ЗА ЕДОЙ!';
+                    } else {
+                        startBtn.disabled = true;
+                        startBtn.textContent = 'Ждём второго кота...';
+                    }
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.textContent = 'Ждём, пока хост начнёт игру...';
+                }
+
+                // Переход в игру
+                if (data.status === 'playing' && state.status !== 'playing') {
+                    launchMatch(data);
+                }
+
+                // Синхронизация во время игры
+                if (data.status === 'playing' && state.status === 'playing') {
+                    // Обновляем напарника
+                    for (const pid of Object.keys(playersObj)) {
+                        if (pid !== myPlayerId) {
+                            const remote = playersObj[pid];
+                            if (!state.players[pid]) {
+                                state.players[pid] = { ...remote, animPhase: 0 };
+                            } else {
+                                // Плавная интерполяция позиции друга
+                                state.players[pid].targetX = remote.x;
+                                state.players[pid].targetY = remote.y;
+                                state.players[pid].angle = remote.angle;
+                                state.players[pid].downed = remote.downed;
+                                state.players[pid].reviveProgress = remote.reviveProgress;
+                                state.players[pid].hidden = remote.hidden;
+                                if (remote.meowTimer > 0 && state.players[pid].meowTimer <= 0) {
+                                    sfx.playMeow(470);
+                                    spawnSoundRing(remote.x, remote.y);
+                                }
+                                state.players[pid].meowTimer = remote.meowTimer;
+                            }
+                        }
+                    }
+
+                    // Если мы гость — принимаем еду и бабку от хоста
+                    if (!isHost) {
+                        if (Array.isArray(data.foods)) {
+                            data.foods.forEach((rf, i) => {
+                                if (state.foods[i] && !state.foods[i].collected && rf.collected) {
+                                    sfx.playEat();
+                                    spawnFoodParticles(rf.x, rf.y);
+                                }
+                                state.foods[i] = rf;
+                            });
+                        }
+                        if (data.granny) {
+                            const prevMode = state.granny.mode;
+                            Object.assign(state.granny, data.granny);
+                            if (prevMode !== 'aiming' && state.granny.mode === 'aiming') {
+                                sfx.playGrannyAlert();
+                            }
+                            if (prevMode === 'aiming' && state.granny.mode === 'cooldown') {
+                                sfx.playShotgun();
+                                triggerShotgunVisuals(state.granny.x, state.granny.y, state.granny.aimAngle);
+                            }
+                        }
+                    }
+                }
+
+                if ((data.status === 'won' || data.status === 'lost') && state.status === 'playing') {
+                    finishGame(data.status === 'won');
+                }
+            }, (err) => {
+                console.error('Ошибка синхронизации комнаты:', err);
+            });
+        }
+
+        // Хост нажимает "Начать игру"
+        document.getElementById('btnStartOnlineGame').addEventListener('click', async () => {
+            if (!isHost || !roomCode) return;
+            sfx.init();
+            const freshFoods = FOOD_SPAWNS.map((f, idx) => ({ id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false }));
+            await updateDoc(getRoomDocRef(roomCode), {
+                status: 'playing',
+                foods: freshFoods,
+                granny: {
+                    x: 780, y: 300, angle: 0, speed: 145, alertLevel: 0,
+                    mode: 'patrol', targetX: 380, targetY: 300, waypointIdx: 1,
+                    aimTimer: 0, aimAngle: 0, phrase: '', phraseTimer: 0
+                }
+            });
+        });
+
+        // Режим "Играть одному с ботом-напарником"
+        document.getElementById('btnSoloMode').addEventListener('click', () => {
+            sfx.init();
+            sfx.playMeow(560);
+            gameMode = 'solo';
+            isHost = true;
+            roomCode = 'SOLO';
+            const catName = (document.getElementById('inputCatName').value.trim() || 'Рыжик').slice(0, 14);
+            const botSkin = selectedSkin === 'smoke' ? 'ginger' : 'smoke';
+
+            const soloData = {
+                players: {
+                    [myPlayerId]: {
+                        id: myPlayerId, name: catName, skin: selectedSkin,
+                        x: 640, y: 150, angle: 0, stamina: 100,
+                        downed: false, reviveProgress: 0, hidden: false, meowTimer: 0
+                    },
+                    ['bot_partner']: {
+                        id: 'bot_partner', name: 'Дымок (Бот)', skin: botSkin, isBot: true,
+                        x: 730, y: 150, angle: 0, stamina: 100,
+                        downed: false, reviveProgress: 0, hidden: false, meowTimer: 0
+                    }
+                },
+                foods: FOOD_SPAWNS.map((f, idx) => ({ id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false }))
+            };
+            launchMatch(soloData);
+        });
+
+        // Запуск матча
+        function launchMatch(roomData) {
+            document.getElementById('lobbyOverlay').classList.add('hidden');
+            document.getElementById('endGameOverlay').classList.add('hidden');
+            document.getElementById('gameHud').classList.remove('hidden');
+            document.getElementById('controlsHint').classList.remove('hidden');
+
+            if (gameMode === 'online') {
+                document.getElementById('hudRoomBadge').classList.remove('hidden');
+                document.getElementById('hudRoomCode').textContent = roomCode;
+            } else {
+                document.getElementById('hudRoomBadge').classList.add('hidden');
+            }
+
+            state.status = 'playing';
+            state.startTime = performance.now();
+            state.players = {};
+
+            for (const [pid, p] of Object.entries(roomData.players)) {
+                state.players[pid] = {
+                    ...p,
+                    targetX: p.x,
+                    targetY: p.y,
+                    animPhase: 0
+                };
+            }
+
+            state.foods = (roomData.foods || FOOD_SPAWNS.map((f, idx) => ({
+                id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false
+            }))).map(f => ({ ...f }));
+
+            state.granny = {
+                x: 780, y: 300, angle: 0, speed: 145, alertLevel: 0,
+                mode: 'patrol', targetX: 380, targetY: 300, waypointIdx: 1,
+                aimTimer: 0, aimAngle: 0, phrase: 'Ох, поясница...', phraseTimer: 3.0
+            };
+            state.particles = [];
+            state.pellets = [];
+            state.soundRings = [];
+
+            updateHud();
+        }
+
+        // Выход / рестарт
+        document.getElementById('btnLeaveGame').addEventListener('click', () => {
+            state.status = 'lobby';
+            document.getElementById('gameHud').classList.add('hidden');
+            document.getElementById('controlsHint').classList.add('hidden');
+            document.getElementById('lobbyOverlay').classList.remove('hidden');
+        });
+
+        document.getElementById('btnEndToMenu').addEventListener('click', () => {
+            state.status = 'lobby';
+            document.getElementById('endGameOverlay').classList.add('hidden');
+            document.getElementById('gameHud').classList.add('hidden');
+            document.getElementById('controlsHint').classList.add('hidden');
+            document.getElementById('lobbyOverlay').classList.remove('hidden');
+        });
+
+        document.getElementById('btnPlayAgain').addEventListener('click', async () => {
+            if (gameMode === 'solo') {
+                document.getElementById('btnSoloMode').click();
+            } else if (gameMode === 'online' && isHost) {
+                document.getElementById('btnStartOnlineGame').click();
+            } else {
+                showToast('Попроси хоста комнаты нажать «Сыграть ещё раз»!');
+            }
+        });
+
+        document.getElementById('btnSoundToggle').addEventListener('click', (e) => {
+            sfx.enabled = !sfx.enabled;
+            e.target.textContent = sfx.enabled ? '🔊' : '🔇';
+        });
+
+        // ==========================================
+        // 6. ВВОД (КЛАВИАТУРА И СЕНСОРНЫЙ ДЖОЙСТИК)
+        // ==========================================
+        const keys = {};
+        let joyVec = { x: 0, y: 0 };
+        let mobileSprint = false;
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (state.status === 'playing' && e.code === 'KeyE') {
+                triggerCatMeow();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Мобильный джойстик
+        const joyZone = document.getElementById('joystickZone');
+        const joyKnob = document.getElementById('joystickKnob');
+        let joyTouchId = null;
+
+        joyZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+            joyTouchId = t.identifier;
+            updateJoystick(t);
+        });
+        joyZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyTouchId) updateJoystick(t);
+            }
+        });
+        const resetJoystick = (e) => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyTouchId) {
+                    joyTouchId = null;
+                    joyVec = { x: 0, y: 0 };
+                    joyKnob.style.transform = 'translate(0px, 0px)';
+                }
+            }
+        };
+        joyZone.addEventListener('touchend', resetJoystick);
+        joyZone.addEventListener('touchcancel', resetJoystick);
+
+        function updateJoystick(touch) {
+            const rect = joyZone.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = touch.clientX - cx;
+            let dy = touch.clientY - cy;
+            const maxR = 40;
+            const dist = Math.hypot(dx, dy);
+            if (dist > maxR) {
+                dx = (dx / dist) * maxR;
+                dy = (dy / dist) * maxR;
+            }
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyVec = { x: dx / maxR, y: dy / maxR };
+        }
+
+        document.getElementById('btnMobileMeow').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            triggerCatMeow();
+        });
+        const btnMobSprint = document.getElementById('btnMobileSprint');
+        btnMobSprint.addEventListener('touchstart', (e) => { e.preventDefault(); mobileSprint = true; });
+        btnMobSprint.addEventListener('touchend', (e) => { e.preventDefault(); mobileSprint = false; });
+
+        function triggerCatMeow() {
+            const me = state.players[myPlayerId];
+            if (!me || me.downed || me.meowTimer > 0) return;
+            me.meowTimer = 1.6;
+            sfx.playMeow(540);
+            spawnSoundRing(me.x, me.y);
+
+            // Если мы хост — бабка слышит мяуканье в радиусе 520px
+            if (isHost) {
+                alertGrannyToSound(me.x, me.y);
+            }
+        }
+
+        function alertGrannyToSound(sx, sy) {
+            const g = state.granny;
+            const d = Math.hypot(g.x - sx, g.y - sy);
+            if (d < 560 && g.mode !== 'chase' && g.mode !== 'aiming') {
+                g.mode = 'investigate';
+                g.targetX = sx;
+                g.targetY = sy;
+                g.alertLevel = Math.max(g.alertLevel, 65);
+                g.phrase = 'Кто там мяукает?!';
+                g.phraseTimer = 2.4;
+                sfx.playGrannyAlert();
+            }
+        }
+
+        // ==========================================
+        // 7. ФИЗИКА, КОЛЛИЗИИ И ГЕОМЕТРИЯ ОБЗОРА
+        // ==========================================
+        function circleRectCollide(cx, cy, r, rect) {
+            const closestX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+            const closestY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+            const dx = cx - closestX;
+            const dy = cy - closestY;
+            return (dx * dx + dy * dy) < (r * r);
+        }
+
+        function resolveObstacles(entity, radius) {
+            // Стены
+            for (const w of WALLS) {
+                pushOutOfRect(entity, radius, w);
+            }
+            // Твёрдая мебель
+            for (const f of FURNITURE) {
+                if (f.solid) {
+                    pushOutOfRect(entity, radius, f);
+                }
+            }
+        }
+
+        function pushOutOfRect(entity, radius, rect) {
+            const closestX = Math.max(rect.x, Math.min(entity.x, rect.x + rect.w));
+            const closestY = Math.max(rect.y, Math.min(entity.y, rect.y + rect.h));
+            const dx = entity.x - closestX;
+            const dy = entity.y - closestY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < radius * radius) {
+                const dist = Math.sqrt(distSq) || 0.001;
+                const overlap = radius - dist;
+                entity.x += (dx / dist) * overlap;
+                entity.y += (dy / dist) * overlap;
+            }
+        }
+
+        // Проверка прямой видимости между двумя точками (блокируется стенами)
+        function hasLineOfSight(x1, y1, x2, y2) {
+            for (const w of WALLS) {
+                if (lineIntersectsRect(x1, y1, x2, y2, w)) return false;
+            }
+            return true;
+        }
+
+        function lineIntersectsRect(x1, y1, x2, y2, r) {
+            return (
+                lineIntersectsLine(x1, y1, x2, y2, r.x, r.y, r.x + r.w, r.y) ||
+                lineIntersectsLine(x1, y1, x2, y2, r.x + r.w, r.y, r.x + r.w, r.y + r.h) ||
+                lineIntersectsLine(x1, y1, x2, y2, r.x + r.w, r.y + r.h, r.x, r.y + r.h) ||
+                lineIntersectsLine(x1, y1, x2, y2, r.x, r.y + r.h, r.x, r.y)
+            );
+        }
+
+        function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+            if (denom === 0) return false;
+            const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+            const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+            return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+        }
+
+        function normalizeAngle(a) {
+            while (a > Math.PI) a -= Math.PI * 2;
+            while (a < -Math.PI) a += Math.PI * 2;
+            return a;
+        }
+
+        // ==========================================
+        // 8. ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ (UPDATE)
+        // ==========================================
+        function updateGame(dt) {
+            if (state.status !== 'playing') return;
+
+            state.elapsedSec = (performance.now() - state.startTime) / 1000;
+            const me = state.players[myPlayerId];
+            if (!me) return;
+
+            // --- А. Движение нашего кота ---
+            if (me.meowTimer > 0) me.meowTimer = Math.max(0, me.meowTimer - dt);
+
+            if (!me.downed) {
+                let ix = joyVec.x;
+                let iy = joyVec.y;
+                if (keys['KeyW'] || keys['ArrowUp']) iy -= 1;
+                if (keys['KeyS'] || keys['ArrowDown']) iy += 1;
+                if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
+                if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+
+                const mag = Math.hypot(ix, iy);
+                if (mag > 1) {
+                    ix /= mag;
+                    iy /= mag;
+                }
+
+                const wantsSprint = keys['ShiftLeft'] || keys['ShiftRight'] || keys['Space'] || mobileSprint;
+                const isSprinting = wantsSprint && mag > 0.1 && me.stamina > 2;
+
+                if (isSprinting) {
+                    me.stamina = Math.max(0, me.stamina - 38 * dt);
+                } else {
+                    me.stamina = Math.min(100, me.stamina + 24 * dt);
+                }
+
+                const speed = isSprinting ? 295 : 185;
+                if (mag > 0.05) {
+                    me.x += ix * speed * dt;
+                    me.y += iy * speed * dt;
+                    me.angle = Math.atan2(iy, ix);
+                    me.animPhase += dt * (isSprinting ? 18 : 11);
+
+                    if (isSprinting && Math.random() < 0.35) {
+                        state.particles.push({
+                            x: me.x - Math.cos(me.angle) * 14,
+                            y: me.y - Math.sin(me.angle) * 14,
+                            vx: (Math.random() - 0.5) * 30,
+                            vy: (Math.random() - 0.5) * 30,
+                            life: 0.35, maxLife: 0.35, size: 5, color: 'rgba(255,255,255,0.45)'
+                        });
+                    }
+                }
+
+                resolveObstacles(me, 18);
+
+                // Проверка укрытий (под столом / кроватью / за корзиной)
+                me.hidden = FURNITURE.some(f => f.hideout &&
+                    me.x > f.x + 8 && me.x < f.x + f.w - 8 &&
+                    me.y > f.y + 8 && me.y < f.y + f.h - 8
+                );
+            } else {
+                me.hidden = false;
+            }
+
+            // --- Б. Обновление напарника (Интерполяция в онлайне или ИИ-бот в соло) ---
+            for (const pid of Object.keys(state.players)) {
+                if (pid === myPlayerId) continue;
+                const partner = state.players[pid];
+                if (partner.meowTimer > 0) partner.meowTimer = Math.max(0, partner.meowTimer - dt);
+
+                if (gameMode === 'online') {
+                    const dx = (partner.targetX ?? partner.x) - partner.x;
+                    const dy = (partner.targetY ?? partner.y) - partner.y;
+                    if (Math.hypot(dx, dy) > 1) {
+                        partner.x += dx * Math.min(1, dt * 14);
+                        partner.y += dy * Math.min(1, dt * 14);
+                        partner.animPhase = (partner.animPhase || 0) + dt * 12;
+                    }
+                } else if (partner.isBot && !partner.downed) {
+                    updateBotPartner(partner, me, dt);
+                }
+            }
+
+            // --- В. Сбор еды и спасение напарника ---
+            for (const cat of Object.values(state.players)) {
+                if (cat.downed) continue;
+
+                // Сбор вкусняшек
+                for (const food of state.foods) {
+                    if (!food.collected && Math.hypot(cat.x - food.x, cat.y - food.y) < 32) {
+                        food.collected = true;
+                        sfx.playEat();
+                        spawnFoodParticles(food.x, food.y);
+                        updateHud();
+                    }
+                }
+
+                // Спасение оглушённого друга (просто подойти вплотную на 2 сек)
+                for (const other of Object.values(state.players)) {
+                    if (other.id !== cat.id && other.downed) {
+                        const dist = Math.hypot(cat.x - other.x, cat.y - other.y);
+                        if (dist < 46) {
+                            other.reviveProgress = Math.min(100, (other.reviveProgress || 0) + 52 * dt);
+                            if (other.reviveProgress >= 100) {
+                                other.downed = false;
+                                other.reviveProgress = 0;
+                                sfx.playRevive();
+                                showToast('💖 Напарник спасён!');
+                                spawnFoodParticles(other.x, other.y, '#f43f5e');
+                            }
+                        } else {
+                            other.reviveProgress = Math.max(0, (other.reviveProgress || 0) - 20 * dt);
+                        }
+                    }
+                }
+            }
+
+            // --- Г. ИИ Бабки с дробовиком (выполняет хост) ---
+            if (isHost) {
+                updateGrannyAI(dt);
+            }
+
+            // --- Д. Частицы, дробь и звуковые волны ---
+            updateEffects(dt);
+
+            // --- Е. Камера ---
+            const targetCamX = me.x - canvas.width / 2;
+            const targetCamY = me.y - canvas.height / 2;
+            state.camera.x += (targetCamX - state.camera.x) * Math.min(1, dt * 8);
+            state.camera.y += (targetCamY - state.camera.y) * Math.min(1, dt * 8);
+            state.camera.x = Math.max(-40, Math.min(MAP_W - canvas.width + 40, state.camera.x));
+            state.camera.y = Math.max(-40, Math.min(MAP_H - canvas.height + 40, state.camera.y));
+            if (state.camera.shake > 0) state.camera.shake = Math.max(0, state.camera.shake - dt * 25);
+
+            // --- Ж. Проверка победы / поражения ---
+            const collectedCount = state.foods.filter(f => f.collected).length;
+            if (collectedCount >= TOTAL_FOOD) {
+                finishGame(true);
+            } else {
+                const allCats = Object.values(state.players);
+                if (allCats.length > 0 && allCats.every(c => c.downed)) {
+                    finishGame(false);
+                }
+            }
+
+            // --- З. Отправка данных в Firestore (раз в ~90мс) ---
+            if (gameMode === 'online' && performance.now() - lastSyncSent > 90) {
+                lastSyncSent = performance.now();
+                syncToCloud();
+            }
+
+            updateHud();
+        }
+
+        // Умный кот-бот для одиночного теста
+        function updateBotPartner(bot, human, dt) {
+            let goalX = human.x - 45;
+            let goalY = human.y - 45;
+
+            // Если человек оглушён — бот бежит спасать!
+            if (human.downed) {
+                goalX = human.x;
+                goalY = human.y;
+            } else {
+                // Иначе ищет ближайшую еду подальше от бабки
+                let bestDist = Infinity;
+                for (const f of state.foods) {
+                    if (!f.collected) {
+                        const dBot = Math.hypot(bot.x - f.x, bot.y - f.y);
+                        const dGranny = Math.hypot(state.granny.x - f.x, state.granny.y - f.y);
+                        if (dGranny > 180 && dBot < bestDist) {
+                            bestDist = dBot;
+                            goalX = f.x;
+                            goalY = f.y;
+                        }
+                    }
+                }
+            }
+
+            // Убегает, если бабка слишком близко
+            const distToGranny = Math.hypot(bot.x - state.granny.x, bot.y - state.granny.y);
+            if (distToGranny < 210 && !human.downed) {
+                goalX = bot.x + (bot.x - state.granny.x);
+                goalY = bot.y + (bot.y - state.granny.y);
+            }
+
+            const dx = goalX - bot.x;
+            const dy = goalY - bot.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 12) {
+                const spd = distToGranny < 220 ? 235 : 175;
+                bot.x += (dx / dist) * spd * dt;
+                bot.y += (dy / dist) * spd * dt;
+                bot.angle = Math.atan2(dy, dx);
+                bot.animPhase = (bot.animPhase || 0) + dt * 12;
+                resolveObstacles(bot, 18);
+            }
+            bot.hidden = FURNITURE.some(f => f.hideout &&
+                bot.x > f.x + 8 && bot.x < f.x + f.w - 8 &&
+                bot.y > f.y + 8 && bot.y < f.y + f.h - 8
+            );
+        }
+
+        // Логика Бабки с дробовиком
+        function updateGrannyAI(dt) {
+            const g = state.granny;
+            if (g.phraseTimer > 0) g.phraseTimer = Math.max(0, g.phraseTimer - dt);
+
+            // Поиск видимого кота в конусе обзора (дальность 390px, угол ~75 градусов)
+            let spottedCat = null;
+            let minCatDist = Infinity;
+
+            for (const cat of Object.values(state.players)) {
+                if (cat.downed || cat.hidden) continue;
+                const dx = cat.x - g.x;
+                const dy = cat.y - g.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 390) {
+                    const angleToCat = Math.atan2(dy, dx);
+                    const diff = Math.abs(normalizeAngle(angleToCat - g.angle));
+                    if (diff < 0.68 && hasLineOfSight(g.x, g.y, cat.x, cat.y)) {
+                        if (dist < minCatDist) {
+                            minCatDist = dist;
+                            spottedCat = cat;
+                        }
+                    }
+                }
+            }
+
+            if (g.mode === 'aiming') {
+                // Бабка прицеливается 0.65 сек перед выстрелом (даёт шанс спрятаться за стену!)
+                g.aimTimer -= dt;
+                if (spottedCat) {
+                    g.aimAngle = Math.atan2(spottedCat.y - g.y, spottedCat.x - g.x);
+                    g.angle = g.aimAngle;
+                }
+                if (g.aimTimer <= 0) {
+                    fireGrannyShotgun();
+                    g.mode = 'cooldown';
+                    g.aimTimer = 1.1;
+                }
+                return;
+            }
+
+            if (g.mode === 'cooldown') {
+                g.aimTimer -= dt;
+                if (g.aimTimer <= 0) {
+                    g.mode = spottedCat ? 'chase' : 'patrol';
+                }
+                return;
+            }
+
+            if (spottedCat) {
+                if (g.mode !== 'chase') {
+                    g.phrase = GRANNY_PHRASES[Math.floor(Math.random() * GRANNY_PHRASES.length)];
+                    g.phraseTimer = 2.6;
+                    sfx.playGrannyAlert();
+                }
+                g.mode = 'chase';
+                g.alertLevel = 100;
+                g.targetX = spottedCat.x;
+                g.targetY = spottedCat.y;
+
+                // Если кот на дистанции выстрела — начинаем прицеливание
+                if (minCatDist < 250) {
+                    g.mode = 'aiming';
+                    g.aimTimer = 0.65;
+                    g.aimAngle = Math.atan2(spottedCat.y - g.y, spottedCat.x - g.x);
+                    return;
+                }
+            } else {
+                g.alertLevel = Math.max(0, g.alertLevel - 28 * dt);
+                if (g.mode === 'chase' && g.alertLevel <= 15) {
+                    g.mode = 'patrol';
+                }
+            }
+
+            // Движение к текущей цели (патруль, звук или погоня)
+            let destX = g.targetX;
+            let destY = g.targetY;
+            let moveSpeed = 140;
+
+            if (g.mode === 'patrol') {
+                const wp = GRANNY_WAYPOINTS[g.waypointIdx % GRANNY_WAYPOINTS.length];
+                destX = wp.x;
+                destY = wp.y;
+                if (Math.hypot(destX - g.x, destY - g.y) < 28) {
+                    g.waypointIdx = (g.waypointIdx + 1) % GRANNY_WAYPOINTS.length;
+                }
+            } else if (g.mode === 'investigate') {
+                moveSpeed = 175;
+                if (Math.hypot(destX - g.x, destY - g.y) < 35) {
+                    g.mode = 'patrol';
+                }
+            } else if (g.mode === 'chase') {
+                moveSpeed = 215;
+            }
+
+            const dx = destX - g.x;
+            const dy = destY - g.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 4) {
+                const targetAngle = Math.atan2(dy, dx);
+                g.angle += normalizeAngle(targetAngle - g.angle) * Math.min(1, dt * 7);
+                g.x += (dx / dist) * moveSpeed * dt;
+                g.y += (dy / dist) * moveSpeed * dt;
+                resolveObstacles(g, 22);
+            }
+        }
+
+        function fireGrannyShotgun() {
+            const g = state.granny;
+            sfx.playShotgun();
+            triggerShotgunVisuals(g.x, g.y, g.aimAngle);
+
+            // Проверяем попадание по котам в конусе дроби (дальность 290px, угол +/- 0.34 рад)
+            for (const cat of Object.values(state.players)) {
+                if (cat.downed || cat.hidden) continue;
+                const dx = cat.x - g.x;
+                const dy = cat.y - g.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 290) {
+                    const ang = Math.atan2(dy, dx);
+                    if (Math.abs(normalizeAngle(ang - g.aimAngle)) < 0.36 && hasLineOfSight(g.x, g.y, cat.x, cat.y)) {
+                        cat.downed = true;
+                        cat.reviveProgress = 0;
+                        spawnFoodParticles(cat.x, cat.y, '#facc15');
+                        if (cat.id === myPlayerId) {
+                            showToast('💥 Бабка попала! Жди, пока друг подойдёт и спасёт!');
+                        }
+                    }
+                }
+            }
+        }
+
+        function triggerShotgunVisuals(gx, gy, angle) {
+            state.camera.shake = 12;
+            const muzzleX = gx + Math.cos(angle) * 34;
+            const muzzleY = gy + Math.sin(angle) * 34;
+            for (let i = 0; i < 14; i++) {
+                const spread = angle + (Math.random() - 0.5) * 0.65;
+                const spd = 650 + Math.random() * 250;
+                state.pellets.push({
+                    x: muzzleX, y: muzzleY,
+                    vx: Math.cos(spread) * spd,
+                    vy: Math.sin(spread) * spd,
+                    life: 0.32
+                });
+            }
+            for (let i = 0; i < 12; i++) {
+                state.particles.push({
+                    x: muzzleX, y: muzzleY,
+                    vx: Math.cos(angle + (Math.random() - 0.5)) * (80 + Math.random() * 120),
+                    vy: Math.sin(angle + (Math.random() - 0.5)) * (80 + Math.random() * 120),
+                    life: 0.45, maxLife: 0.45, size: 8 + Math.random() * 6,
+                    color: 'rgba(253, 224, 71, 0.75)'
+                });
+            }
+        }
+
+        function spawnFoodParticles(x, y, color = '#fbbf24') {
+            for (let i = 0; i < 12; i++) {
+                const a = (Math.PI * 2 * i) / 12;
+                state.particles.push({
+                    x, y,
+                    vx: Math.cos(a) * (70 + Math.random() * 60),
+                    vy: Math.sin(a) * (70 + Math.random() * 60),
+                    life: 0.45, maxLife: 0.45, size: 5, color
+                });
+            }
+        }
+
+        function spawnSoundRing(x, y) {
+            state.soundRings.push({ x, y, r: 15, maxR: 260, alpha: 0.9 });
+        }
+
+        function updateEffects(dt) {
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) state.particles.splice(i, 1);
+            }
+            for (let i = state.pellets.length - 1; i >= 0; i--) {
+                const b = state.pellets[i];
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+                b.life -= dt;
+                // Остановка дроби о стены
+                for (const w of WALLS) {
+                    if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + w.h) {
+                        b.life = 0;
+                        break;
+                    }
+                }
+                if (b.life <= 0) state.pellets.splice(i, 1);
+            }
+            for (let i = state.soundRings.length - 1; i >= 0; i--) {
+                const ring = state.soundRings[i];
+                ring.r += 340 * dt;
+                ring.alpha = Math.max(0, 1 - ring.r / ring.maxR);
+                if (ring.r >= ring.maxR) state.soundRings.splice(i, 1);
+            }
+        }
+
+        async function syncToCloud() {
+            if (!firebaseReady || !roomCode || state.status !== 'playing') return;
+            const me = state.players[myPlayerId];
+            if (!me) return;
+            try {
+                const payload = {
+                    [`players.${myPlayerId}`]: {
+                        id: me.id,
+                        name: me.name,
+                        skin: me.skin,
+                        x: Math.round(me.x),
+                        y: Math.round(me.y),
+                        angle: Number(me.angle.toFixed(2)),
+                        stamina: Math.round(me.stamina),
+                        downed: me.downed,
+                        reviveProgress: Math.round(me.reviveProgress || 0),
+                        hidden: me.hidden,
+                        meowTimer: Number(me.meowTimer.toFixed(2))
+                    }
+                };
+                if (isHost) {
+                    payload.foods = state.foods;
+                    payload.granny = {
+                        x: Math.round(state.granny.x),
+                        y: Math.round(state.granny.y),
+                        angle: Number(state.granny.angle.toFixed(2)),
+                        mode: state.granny.mode,
+                        alertLevel: Math.round(state.granny.alertLevel),
+                        aimTimer: Number(state.granny.aimTimer.toFixed(2)),
+                        aimAngle: Number(state.granny.aimAngle.toFixed(2)),
+                        phrase: state.granny.phrase,
+                        phraseTimer: Number(state.granny.phraseTimer.toFixed(1))
+                    };
+                }
+                await updateDoc(getRoomDocRef(roomCode), payload);
+            } catch (e) {
+                // Игнорируем редкие сетевые лаги
+            }
+        }
+
+        function updateHud() {
+            const collected = state.foods.filter(f => f.collected).length;
+            document.getElementById('hudFoodCount').textContent = collected;
+            document.getElementById('hudFoodTotal').textContent = TOTAL_FOOD;
+
+            const me = state.players[myPlayerId];
+            if (me) {
+                const stam = Math.round(me.stamina);
+                document.getElementById('hudStaminaText').textContent = stam + '%';
+                const bar = document.getElementById('hudStaminaBar');
+                bar.style.width = stam + '%';
+                bar.className = 'h-full transition-all duration-75 ' + (stam < 25 ? 'bg-rose-500' : 'bg-emerald-400');
+            }
+        }
+
+        async function finishGame(isWin) {
+            if (state.status === 'won' || state.status === 'lost') return;
+            state.status = isWin ? 'won' : 'lost';
+
+            const collected = state.foods.filter(f => f.collected).length;
+            const mins = String(Math.floor(state.elapsedSec / 60)).padStart(2, '0');
+            const secs = String(Math.floor(state.elapsedSec % 60)).padStart(2, '0');
+
+            document.getElementById('endGameEmoji').textContent = isWin ? '🏆🐱' : '👵💥';
+            document.getElementById('endGameTitle').textContent = isWin ? 'ПОБЕДА! ХОЛОДИЛЬНИК ПУСТ!' : 'БАБКА ПОЙМАЛА КОТОВ!';
+            document.getElementById('endGameTitle').className = 'text-2xl sm:text-3xl font-black ' + (isWin ? 'text-amber-400' : 'text-rose-500');
+            document.getElementById('endGameDesc').textContent = isWin
+                ? 'Вы с напарником утащили все вкусняшки и оставили бабку с носом!'
+                : 'Оба кота получили заряд соли и отправлены на коврик у двери.';
+            document.getElementById('endStatFood').textContent = `${collected} / ${TOTAL_FOOD}`;
+            document.getElementById('endStatTime').textContent = `${mins}:${secs}`;
+            document.getElementById('endGameOverlay').classList.remove('hidden');
+
+            if (isWin) sfx.playWin();
+            else sfx.playShotgun();
+
+            if (gameMode === 'online' && isHost && firebaseReady) {
+                try {
+                    await updateDoc(getRoomDocRef(roomCode), { status: isWin ? 'won' : 'lost' });
+                } catch (e) {}
+            }
+        }
+
+        // ==========================================
+        // 9. ОТРИСОВКА (CANVAS RENDERING)
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawFloorPattern(room) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(room.x, room.y, room.w, room.h);
+            ctx.clip();
+
+            if (room.floor === 'tile_kitchen') {
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(room.x, room.y, room.w, room.h);
+                ctx.fillStyle = '#fde68a';
+                const size = 40;
+                for (let x = room.x; x < room.x + room.w; x += size) {
+                    for (let y = room.y; y < room.y + room.h; y += size) {
+                        if (((x + y) / size) % 2 === 0) {
+                            ctx.fillRect(x, y, size, size);
+                        }
+                    }
+                }
+            } else if (room.floor === 'tile_bath') {
+                ctx.fillStyle = '#e0f2fe';
+                ctx.fillRect(room.x, room.y, room.w, room.h);
+                ctx.strokeStyle = '#bae6fd';
+                ctx.lineWidth = 2;
+                for (let x = room.x; x < room.x + room.w; x += 36) {
+                    ctx.beginPath(); ctx.moveTo(x, room.y); ctx.lineTo(x, room.y + room.h); ctx.stroke();
+                }
+                for (let y = room.y; y < room.y + room.h; y += 36) {
+                    ctx.beginPath(); ctx.moveTo(room.x, y); ctx.lineTo(room.x + room.w, y); ctx.stroke();
+                }
+            } else if (room.floor === 'wood_hall') {
+                ctx.fillStyle = '#d6a87c';
+                ctx.fillRect(room.x, room.y, room.w, room.h);
+                ctx.strokeStyle = '#b88658';
+                ctx.lineWidth = 2;
+                for (let y = room.y; y < room.y + room.h; y += 28) {
+                    ctx.beginPath(); ctx.moveTo(room.x, y); ctx.lineTo(room.x + room.w, y); ctx.stroke();
+                }
+            } else if (room.floor === 'carpet_living') {
+                ctx.fillStyle = '#c49a6c';
+                ctx.fillRect(room.x, room.y, room.w, room.h);
+                // Уютный ковёр в центре гостиной
+                ctx.fillStyle = '#991b1b';
+                ctx.beginPath();
+                ctx.roundRect(room.x + 120, room.y + 110, room.w - 240, room.h - 200, 24);
+                ctx.fill();
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = '#caa074';
+                ctx.fillRect(room.x, room.y, room.w, room.h);
+                ctx.fillStyle = '#6366f1';
+                ctx.beginPath();
+                ctx.roundRect(room.x + 160, room.y + 80, room.w - 240, room.h - 140, 24);
+                ctx.fill();
+            }
+
+            // Название комнаты водяным знаком на полу
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.14)';
+            ctx.font = '900 28px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(room.name, room.x + room.w / 2, room.y + room.h / 2 + 10);
+
+            ctx.restore();
+        }
+
+        function drawCat(cat) {
+            const skin = CAT_SKINS[cat.skin] || CAT_SKINS.ginger;
+            ctx.save();
+            ctx.translate(cat.x, cat.y);
+
+            if (cat.hidden) {
+                ctx.globalAlpha = 0.45;
+            }
+
+            // Тень
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+            ctx.beginPath();
+            ctx.ellipse(0, 6, 19, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (cat.downed) {
+                // Оглушённый кот лежит на боку со звёздочками
+                ctx.rotate(Math.PI / 2);
+                ctx.fillStyle = skin.body;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                ctx.restore();
+
+                // Индикатор спасения и звёздочки
+                ctx.save();
+                ctx.translate(cat.x, cat.y);
+                const t = performance.now() * 0.005;
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('💫', Math.cos(t) * 14, -24 + Math.sin(t) * 4);
+                ctx.fillStyle = '#facc15';
+                ctx.font = 'bold 12px Rubik, sans-serif';
+                ctx.fillText('ОГЛУШЁН! Подойди спасти', 0, -38);
+
+                if (cat.reviveProgress > 0) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(-26, -54, 52, 7);
+                    ctx.fillStyle = '#10b981';
+                    ctx.fillRect(-25, -53, 50 * (cat.reviveProgress / 100), 5);
+                }
+                ctx.restore();
+                return;
+            }
+
+            ctx.save();
+            ctx.rotate(cat.angle);
+
+            // Виляющий хвост
+            const wag = Math.sin((cat.animPhase || 0) * 0.8) * 0.45;
+            ctx.strokeStyle = skin.body;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-14, 0);
+            ctx.quadraticCurveTo(-26, Math.sin(wag) * 14, -34, Math.sin(wag) * 18);
+            ctx.stroke();
+
+            // Лапки при беге
+            const step = Math.sin(cat.animPhase || 0) * 6;
+            ctx.fillStyle = skin.stripe;
+            ctx.beginPath(); ctx.arc(10 + step, -12, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(10 - step, 12, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-8 - step, -12, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-8 + step, 12, 5, 0, Math.PI * 2); ctx.fill();
+
+            // Тело кота
+            ctx.fillStyle = skin.body;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Голова
+            ctx.beginPath();
+            ctx.arc(11, 0, 12, 0, Math.PI * 2);
+            ctx.fillStyle = skin.body;
+            ctx.fill();
+            ctx.stroke();
+
+            // Треугольные ушки
+            ctx.fillStyle = skin.body;
+            ctx.beginPath(); ctx.moveTo(12, -11); ctx.lineTo(20, -14); ctx.lineTo(17, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(12, 11); ctx.lineTo(20, 14); ctx.lineTo(17, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+            // Глазки
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath(); ctx.arc(17, -4, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(17, 4, 2.5, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore();
+
+            // Имя кота над головой
+            ctx.globalAlpha = 1;
+            ctx.font = 'bold 12px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+            const nameText = cat.hidden ? `🥷 ${cat.name}` : cat.name;
+            const tw = ctx.measureText(nameText).width + 12;
+            ctx.beginPath();
+            ctx.roundRect(-tw / 2, -36, tw, 18, 8);
+            ctx.fill();
+            ctx.fillStyle = cat.id === myPlayerId ? '#fbbf24' : '#f8fafc';
+            ctx.fillText(nameText, 0, -23);
+
+            // Облачко "МЯУ!"
+            if (cat.meowTimer > 0.7) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.roundRect(-28, -64, 56, 22, 10);
+                ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '900 12px Rubik, sans-serif';
+                ctx.fillText('МЯУ! 🎵', 0, -49);
+            }
+
+            ctx.restore();
+        }
+
+        function drawGranny() {
+            const g = state.granny;
+            ctx.save();
+
+            // 1. Конус обзора бабки
+            const coneDist = 380;
+            const coneHalfAngle = 0.65;
+            const grad = ctx.createRadialGradient(g.x, g.y, 15, g.x, g.y, coneDist);
+            if (g.mode === 'chase' || g.mode === 'aiming') {
+                grad.addColorStop(0, 'rgba(239, 68, 68, 0.36)');
+                grad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+            } else {
+                grad.addColorStop(0, 'rgba(250, 204, 21, 0.28)');
+                grad.addColorStop(1, 'rgba(250, 204, 21, 0.0)');
+            }
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(g.x, g.y);
+            ctx.arc(g.x, g.y, coneDist, g.angle - coneHalfAngle, g.angle + coneHalfAngle);
+            ctx.closePath();
+            ctx.fill();
+
+            // 2. Предупреждающий прицел дробовика перед выстрелом!
+            if (g.mode === 'aiming') {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 8]);
+                ctx.beginPath();
+                ctx.moveTo(g.x, g.y);
+                ctx.lineTo(g.x + Math.cos(g.aimAngle) * 290, g.y + Math.sin(g.aimAngle) * 290);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+                ctx.beginPath();
+                ctx.moveTo(g.x, g.y);
+                ctx.arc(g.x, g.y, 290, g.aimAngle - 0.34, g.aimAngle + 0.34);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 3. Сама Бабка
+            ctx.translate(g.x, g.y);
+            ctx.save();
+            ctx.rotate(g.angle);
+
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.32)';
+            ctx.beginPath();
+            ctx.arc(0, 4, 24, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Двустволка в руках
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(8, 6, 20, 7);
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(22, 6, 24, 6);
+
+            // Халат в цветочек
+            ctx.fillStyle = '#7e22ce';
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#3b0764';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Платок на голове
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.arc(2, 0, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Седой пучок сзади
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.arc(-11, 0, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Крик бабки в облачке над головой
+            if (g.phraseTimer > 0 && g.phrase) {
+                ctx.font = 'bold 13px Rubik, sans-serif';
+                ctx.textAlign = 'center';
+                const pw = ctx.measureText(g.phrase).width + 20;
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#e11d48';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.roundRect(-pw / 2, -56, pw, 26, 12);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#9f1239';
+                ctx.fillText(g.phrase, 0, -39);
+            }
+
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.fillStyle = '#14121d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            const shakeX = state.camera.shake ? (Math.random() - 0.5) * state.camera.shake : 0;
+            const shakeY = state.camera.shake ? (Math.random() - 0.5) * state.camera.shake : 0;
+            ctx.translate(-state.camera.x + shakeX, -state.camera.y + shakeY);
+
+            // 1. Полы комнат
+            for (const room of ROOMS) {
+                drawFloorPattern(room);
+            }
+
+            // 2. Твёрдая мебель (под котами)
+            for (const f of FURNITURE) {
+                if (!f.hideout) {
+                    ctx.fillStyle = f.color;
+                    ctx.strokeStyle = f.border;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.roundRect(f.x, f.y, f.w, f.h, 12);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.font = '24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(f.icon, f.x + f.w / 2, f.y + f.h / 2 + 8);
+                }
+            }
+
+            // 3. Еда на карте
+            const bob = Math.sin(performance.now() * 0.006) * 4;
+            for (const food of state.foods) {
+                if (food.collected) continue;
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+                ctx.beginPath();
+                ctx.arc(food.x, food.y, 18, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = '26px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(food.emoji, food.x, food.y + 8 + bob);
+            }
+
+            // 4. Звуковые волны от "Мяу!"
+            for (const ring of state.soundRings) {
+                ctx.strokeStyle = `rgba(251, 191, 36, ${ring.alpha})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // 5. Коты (игроки)
+            for (const cat of Object.values(state.players)) {
+                drawCat(cat);
+            }
+
+            // 6. Мебель-укрытия (рисуется поверх котов, чтобы создавать эффект пряток под столом/кроватью)
+            for (const f of FURNITURE) {
+                if (f.hideout) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.88;
+                    ctx.fillStyle = f.color;
+                    ctx.strokeStyle = f.border;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.roundRect(f.x, f.y, f.w, f.h, 14);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.font = '26px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(f.icon, f.x + f.w / 2, f.y + f.h / 2 + 8);
+                    ctx.restore();
+                }
+            }
+
+            // 7. Бабка с дробовиком
+            drawGranny();
+
+            // 8. Стены квартиры
+            for (const w of WALLS) {
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(w.x, w.y, w.w, w.h);
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(w.x, w.y, w.w, w.h);
+            }
+
+            // 9. Дробь и частицы
+            ctx.fillStyle = '#fef08a';
+            for (const b of state.pellets) {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            for (const p of state.particles) {
+                ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 10. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (60 FPS)
+        // ==========================================
+        let lastFrameTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            if (state.status === 'playing') {
+                updateGame(dt);
+                render();
+            } else {
+                // Фоновая красивая отрисовка карты за лобби
+                state.camera.x = 240 + Math.sin(now * 0.0003) * 180;
+                state.camera.y = 180 + Math.cos(now * 0.00025) * 120;
+                render();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
 </body>
 </html>
