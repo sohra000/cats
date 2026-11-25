@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Коты против Бабки — Кооперативный стелс-экшен</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;900&display=swap" rel="stylesheet">
     <style>
         * {
@@ -16,7 +17,7 @@
             margin: 0;
             padding: 0;
             font-family: 'Rubik', sans-serif;
-            background-color: #14121d;
+            background-color: #161320;
             color: #f8fafc;
             overflow: hidden;
             touch-action: none;
@@ -27,22 +28,25 @@
             height: 100vh;
         }
         .btn-cartoon {
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+            transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+        }
+        .btn-cartoon:hover:not(:disabled) {
+            filter: brightness(1.06);
         }
         .btn-cartoon:active:not(:disabled) {
             transform: translateY(3px);
-            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
         }
         .btn-cartoon:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
         .glass-panel {
-            background: rgba(26, 23, 38, 0.92);
-            backdrop-filter: blur(12px);
-            border: 2px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+            background: rgba(28, 24, 42, 0.94);
+            backdrop-filter: blur(14px);
+            border: 2px solid rgba(251, 191, 36, 0.22);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
         }
         /* Сенсорный джойстик */
         #joystickZone {
@@ -64,8 +68,8 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: rgba(251, 191, 36, 0.85);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            background: rgba(251, 191, 36, 0.88);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.45);
             pointer-events: none;
         }
         @media (pointer: coarse) {
@@ -82,39 +86,42 @@
 
     <!-- Верхний HUD во время игры -->
     <div id="gameHud" class="hidden fixed top-0 left-0 right-0 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-20">
-        <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl shadow-lg pointer-events-auto">
-            <span class="text-xl sm:text-2xl">🐟</span>
+        <div class="flex items-center gap-2.5 bg-slate-900/90 border border-white/15 px-3.5 py-2 rounded-2xl shadow-lg pointer-events-auto">
+            <span id="hudGoalIcon" class="text-xl sm:text-2xl">🐟</span>
             <div>
-                <div class="text-[11px] uppercase tracking-wider text-slate-400">Собрано вкусняшек</div>
-                <div class="text-base sm:text-lg font-black text-amber-400"><span id="hudFoodCount">0</span> / <span id="hudFoodTotal">15</span></div>
+                <div id="hudGoalLabel" class="text-[11px] uppercase tracking-wider text-slate-400">Собрано вкусняшек</div>
+                <div class="text-base sm:text-lg font-black text-amber-400">
+                    <span id="hudFoodCount">0</span> / <span id="hudFoodTotal">14</span>
+                </div>
             </div>
         </div>
 
-        <div id="hudRoomBadge" class="hidden sm:flex items-center gap-2 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl text-xs text-slate-300 pointer-events-auto">
+        <div id="hudRoomBadge" class="hidden sm:flex items-center gap-2 bg-slate-900/90 border border-white/15 px-3.5 py-2 rounded-2xl text-xs text-slate-300 pointer-events-auto">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Комната: <strong id="hudRoomCode" class="text-amber-400 tracking-widest">----</strong></span>
         </div>
 
-        <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/85 border border-white/15 px-3 py-2 rounded-2xl shadow-lg pointer-events-auto">
+        <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/90 border border-white/15 px-3.5 py-2 rounded-2xl shadow-lg pointer-events-auto">
             <div class="w-24 sm:w-32">
                 <div class="flex justify-between text-[11px] text-slate-300 mb-1">
-                    <span>⚡ Лапки</span>
+                    <span>⚡ Рывок</span>
                     <span id="hudStaminaText">100%</span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-700 rounded-full overflow-hidden">
                     <div id="hudStaminaBar" class="h-full bg-emerald-400 transition-all duration-75" style="width: 100%"></div>
                 </div>
             </div>
-            <button id="btnSoundToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-lg" title="Звук">🔊</button>
-            <button id="btnLeaveGame" class="px-3 py-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-xs font-bold">Выйти</button>
+            <button id="btnSoundToggle" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-lg" title="Вкл/Выкл звук">🔊</button>
+            <button id="btnLeaveGame" class="px-3 py-1.5 rounded-xl bg-rose-600/85 hover:bg-rose-600 text-xs font-bold">Выйти</button>
         </div>
     </div>
 
     <!-- Подсказка управления внизу экрана -->
-    <div id="controlsHint" class="hidden md:flex fixed bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/80 border border-white/10 px-4 py-2 rounded-full text-xs text-slate-300 gap-4 z-20 pointer-events-none">
+    <div id="controlsHint" class="hidden md:flex fixed bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 border border-white/10 px-4 py-2 rounded-full text-xs text-slate-300 gap-4 z-20 pointer-events-none">
         <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-white">WASD / Стрелки</kbd> Бежать</span>
-        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-white">Shift / Пробел</kbd> Спринт</span>
-        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300">E</kbd> Мяукнуть (отвлечь бабку)</span>
-        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-emerald-300">R / Рядом</kbd> Спасти друга</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-white">Shift / Пробел</kbd> Рывок</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300">E</kbd> Мяу! (отвлечь бабку)</span>
+        <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-emerald-300">Подойти</kbd> Поднять друга</span>
     </div>
 
     <!-- Мобильный джойстик и кнопки -->
@@ -124,13 +131,13 @@
             <span>🐱</span><span>МЯУ!</span>
         </button>
         <button id="btnMobileSprint" class="btn-cartoon w-16 h-16 rounded-full bg-emerald-500 text-slate-950 font-black text-sm shadow-lg flex flex-col items-center justify-center">
-            <span>⚡</span><span>БЕГ</span>
+            <span>⚡</span><span>РЫВОК</span>
         </button>
     </div>
 
     <!-- Всплывающее уведомление (вместо alert) -->
     <div id="toastBox" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 -translate-y-3">
-        <div id="toastText" class="bg-slate-900/95 border-2 border-amber-400 text-white px-5 py-2.5 rounded-2xl font-bold text-sm shadow-2xl"></div>
+        <div id="toastText" class="bg-slate-900/95 border-2 border-amber-400 text-white px-5 py-2.5 rounded-2xl font-bold text-sm shadow-2xl text-center"></div>
     </div>
 
     <!-- ГЛАВНОЕ МЕНЮ / ЛОББИ -->
@@ -138,24 +145,30 @@
         <div class="glass-panel w-full max-w-xl rounded-3xl p-5 sm:p-7 my-auto">
             <!-- Заголовок -->
             <div class="text-center mb-5">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold mb-2">
-                    🐾 КООПЕРАТИВНЫЙ ПОБЕГ НА ДВОИХ
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/35 text-amber-300 text-xs font-bold mb-2">
+                    🐾 P2P ОНЛАЙН-КООПЕРАТИВ БЕЗ СЕРВЕРОВ
                 </div>
                 <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-white">
                     КОТЫ ПРОТИВ <span class="text-rose-500">БАБКИ</span>
                 </h1>
                 <p class="text-xs sm:text-sm text-slate-300 mt-1">
-                    Стащите всю еду из квартиры и не попадитесь под заряд соли из двустволки!
+                    Стащите всю еду из комнат, прячьтесь под мебелью и бегите к входному коврику!
                 </p>
             </div>
 
             <!-- Экран 1: Настройка кота и выбор режима -->
             <div id="stepSetup" class="space-y-4">
-                <div class="bg-slate-900/70 p-4 rounded-2xl border border-white/10 space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Кличка твоего кота</label>
-                        <input id="inputCatName" type="text" maxlength="14" value="Рыжик" placeholder="Введи имя кота..."
-                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white font-bold focus:outline-none focus:border-amber-400">
+                <div class="bg-slate-900/75 p-4 rounded-2xl border border-white/10 space-y-3.5">
+                    <div class="flex items-center gap-4">
+                        <!-- Живое превью котика -->
+                        <div class="flex flex-col items-center">
+                            <canvas id="catPreviewCanvas" width="76" height="76" class="w-[76px] h-[76px] rounded-2xl bg-slate-800 border-2 border-amber-400/40"></canvas>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Кличка твоего кота</label>
+                            <input id="inputCatName" type="text" maxlength="14" value="Рыжик" placeholder="Введи имя кота..."
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white font-bold focus:outline-none focus:border-amber-400">
+                        </div>
                     </div>
 
                     <div>
@@ -166,16 +179,16 @@
                                 <span class="text-xs font-bold">Рыжик</span>
                             </button>
                             <button type="button" data-skin="smoke" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
-                                <span class="w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-300"></span>
+                                <span class="w-6 h-6 rounded-full bg-slate-500 border-2 border-slate-200"></span>
                                 <span class="text-xs font-bold">Дымок</span>
                             </button>
                             <button type="button" data-skin="snow" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
                                 <span class="w-6 h-6 rounded-full bg-slate-100 border-2 border-pink-300"></span>
                                 <span class="text-xs font-bold">Снежок</span>
                             </button>
-                            <button type="button" data-skin="tuxedo" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
-                                <span class="w-6 h-6 rounded-full bg-zinc-900 border-2 border-white"></span>
-                                <span class="text-xs font-bold">Маркиз</span>
+                            <button type="button" data-skin="barsik" class="skin-btn p-2 rounded-xl border-2 border-transparent bg-slate-800/70 flex flex-col items-center gap-1">
+                                <span class="w-6 h-6 rounded-full bg-zinc-900 border-2 border-amber-300"></span>
+                                <span class="text-xs font-bold">Барсик</span>
                             </button>
                         </div>
                     </div>
@@ -189,9 +202,9 @@
 
                     <div class="flex gap-2">
                         <input id="inputJoinCode" type="text" maxlength="4" placeholder="КОД"
-                            class="w-24 px-3 py-3 rounded-2xl bg-slate-800 border border-white/15 text-center font-black uppercase tracking-widest text-amber-300 focus:outline-none focus:border-amber-400">
+                            class="w-24 px-2 py-3 rounded-2xl bg-slate-800 border border-white/15 text-center font-black uppercase tracking-widest text-amber-300 focus:outline-none focus:border-amber-400">
                         <button id="btnJoinRoom" class="btn-cartoon flex-1 py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm">
-                            Войти →
+                            Войти по коду →
                         </button>
                     </div>
                 </div>
@@ -203,36 +216,42 @@
                     </button>
                 </div>
 
-                <!-- Статус подключения -->
+                <!-- Статус P2P -->
                 <div id="networkStatusLine" class="text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <span id="netDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                    <span id="netStatusText">Подключение к облаку комнат...</span>
+                    <span id="netDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="netStatusText">Готово к игре по сети! Создай комнату или введи код друга</span>
                 </div>
             </div>
 
-            <!-- Экран 2: Комната ожидания (Лобби с кодом) -->
+            <!-- Экран 2: Комната ожидания (Лобби с кодом и ссылкой) -->
             <div id="stepWaitingRoom" class="hidden space-y-4">
-                <div class="bg-slate-900/90 border-2 border-amber-400/40 rounded-2xl p-4 text-center">
-                    <div class="text-xs uppercase tracking-wider text-slate-400">Код твоей комнаты — отправь другу:</div>
-                    <div class="flex items-center justify-center gap-3 mt-1.5">
-                        <span id="displayRoomCode" class="text-3xl sm:text-4xl font-black tracking-[0.25em] text-amber-400">----</span>
+                <div class="bg-slate-900/90 border-2 border-amber-400/40 rounded-2xl p-4 text-center space-y-2.5">
+                    <div class="text-xs uppercase tracking-wider text-slate-400">Код комнаты — отправь другу:</div>
+                    <div class="flex flex-wrap items-center justify-center gap-2.5">
+                        <span id="displayRoomCode" class="text-3xl sm:text-4xl font-black tracking-[0.25em] text-amber-400 bg-slate-800/90 px-4 py-1.5 rounded-xl border border-amber-400/30">----</span>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-2 pt-1">
                         <button id="btnCopyCode" class="btn-cartoon px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold text-white">
-                            📋 Скопировать
+                            📋 Скопировать код
                         </button>
+                        <button id="btnCopyLink" class="btn-cartoon px-3.5 py-2 rounded-xl bg-amber-500/20 border border-amber-400/40 hover:bg-amber-500/30 text-xs font-bold text-amber-300">
+                            🔗 Скопировать ссылку другу
+                        </button>
+                    </div>
+                    <div id="waitingStatusBadge" class="text-xs font-bold text-emerald-400 pt-1">
+                        Ожидаем подключения друга...
                     </div>
                 </div>
 
                 <!-- Список игроков в комнате -->
                 <div class="space-y-2">
-                    <div class="text-xs font-bold uppercase text-slate-400">Коты в банде (нужно 2 игрока):</div>
-                    <div id="lobbyPlayersList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <!-- Заполняется через JS -->
-                    </div>
+                    <div class="text-xs font-bold uppercase text-slate-400">Коты в банде:</div>
+                    <div id="lobbyPlayersList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
                 </div>
 
                 <div class="flex gap-3 pt-2">
                     <button id="btnBackToSetup" class="btn-cartoon px-4 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-sm font-bold">
-                        ← Назад
+                        ← Выйти
                     </button>
                     <button id="btnStartOnlineGame" disabled class="btn-cartoon flex-1 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base">
                         Ждём второго кота...
@@ -247,14 +266,14 @@
         <div class="glass-panel max-w-md w-full rounded-3xl p-6 text-center space-y-4">
             <div id="endGameEmoji" class="text-6xl">🏆</div>
             <h2 id="endGameTitle" class="text-2xl sm:text-3xl font-black text-amber-400">ПОБЕДА!</h2>
-            <p id="endGameDesc" class="text-sm text-slate-300">Коты утащили все запасы из холодильника и скрылись в закате!</p>
+            <p id="endGameDesc" class="text-sm text-slate-300">Коты утащили все запасы и благополучно сбежали через входную дверь!</p>
             <div class="bg-slate-900/80 rounded-2xl p-3 text-sm flex justify-around border border-white/10">
                 <div>
                     <div class="text-slate-400 text-xs">Собрано еды</div>
-                    <div id="endStatFood" class="font-black text-lg text-amber-400">15 / 15</div>
+                    <div id="endStatFood" class="font-black text-lg text-amber-400">14 / 14</div>
                 </div>
                 <div>
-                    <div class="text-slate-400 text-xs">Время</div>
+                    <div class="text-slate-400 text-xs">Время вылазки</div>
                     <div id="endStatTime" class="font-black text-lg text-emerald-400">01:24</div>
                 </div>
             </div>
@@ -269,12 +288,7 @@
         </div>
     </div>
 
-    <!-- ОСНОВНОЙ СКРИПТ ИГРЫ + FIREBASE МУЛЬТИПЛЕЕР -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <script>
         // ==========================================
         // 1. ЗВУКОВОЙ ДВИЖОК (WEB AUDIO API)
         // ==========================================
@@ -300,17 +314,17 @@
                 const gain = this.ctx.createGain();
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(pitch * 0.85, now);
-                osc.frequency.exponentialRampToValueAtTime(pitch * 1.35, now + 0.14);
-                osc.frequency.exponentialRampToValueAtTime(pitch * 0.75, now + 0.42);
+                osc.frequency.exponentialRampToValueAtTime(pitch * 1.38, now + 0.14);
+                osc.frequency.exponentialRampToValueAtTime(pitch * 0.72, now + 0.44);
 
                 gain.gain.setValueAtTime(0.01, now);
                 gain.gain.linearRampToValueAtTime(0.22, now + 0.06);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
 
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
                 osc.start(now);
-                osc.stop(now + 0.46);
+                osc.stop(now + 0.47);
             }
             playEat() {
                 if (!this.enabled) return;
@@ -336,7 +350,7 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(175, now);
+                osc.frequency.setValueAtTime(180, now);
                 osc.frequency.linearRampToValueAtTime(125, now + 0.28);
                 gain.gain.setValueAtTime(0.18, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
@@ -349,7 +363,6 @@
                 if (!this.enabled) return;
                 this.init();
                 const now = this.ctx.currentTime;
-                // Белый шум для выстрела
                 const bufferSize = this.ctx.sampleRate * 0.45;
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const data = buffer.getChannelData(0);
@@ -361,7 +374,7 @@
 
                 const filter = this.ctx.createBiquadFilter();
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(1100, now);
+                filter.frequency.setValueAtTime(1150, now);
                 filter.frequency.exponentialRampToValueAtTime(140, now + 0.42);
 
                 const gain = this.ctx.createGain();
@@ -412,167 +425,156 @@
         const sfx = new SoundFX();
 
         // ==========================================
-        // 2. КОНФИГУРАЦИЯ КАРТЫ КВАРТИРЫ (1600 x 1100)
+        // 2. КОНФИГУРАЦИЯ КАРТЫ КВАРТИРЫ (1400 x 1000)
         // ==========================================
-        const MAP_W = 1600;
-        const MAP_H = 1100;
-        const TOTAL_FOOD = 15;
+        const MAP_W = 1400;
+        const MAP_H = 1000;
+        const TOTAL_FOOD = 14;
+        const PEER_PREFIX = 'cats-babka-room-';
 
         const CAT_SKINS = {
             ginger: { name: 'Рыжик', body: '#f97316', stripe: '#c2410c', ear: '#fed7aa' },
             smoke:  { name: 'Дымок', body: '#64748b', stripe: '#334155', ear: '#cbd5e1' },
             snow:   { name: 'Снежок', body: '#f8fafc', stripe: '#cbd5e1', ear: '#fbcfe8' },
-            tuxedo: { name: 'Маркиз', body: '#27272a', stripe: '#ffffff', ear: '#f472b6' }
+            barsik: { name: 'Барсик', body: '#27272a', stripe: '#f59e0b', ear: '#f472b6' }
         };
 
-        // Комнаты для отрисовки полов и подписей
+        // 5 комнат квартиры
         const ROOMS = [
-            { id: 'kitchen',  name: 'КУХНЯ',     x: 40,   y: 40,  w: 520, h: 460, floor: 'tile_kitchen' },
-            { id: 'hallway',  name: 'КОРИДОР',   x: 560,  y: 40,  w: 440, h: 580, floor: 'wood_hall' },
-            { id: 'bathroom', name: 'ВАННАЯ',    x: 1000, y: 40,  w: 560, h: 460, floor: 'tile_bath' },
-            { id: 'living',   name: 'ГОСТИНАЯ',  x: 40,   y: 500, w: 740, h: 560, floor: 'carpet_living' },
-            { id: 'bedroom',  name: 'СПАЛЬНЯ',   x: 780,  y: 620, w: 780, h: 440, floor: 'parquet_bed' }
+            { id: 'kitchen',  name: 'КУХНЯ',     x: 40,  y: 40,  w: 460, h: 420, floor: 'tile_kitchen' },
+            { id: 'hallway',  name: 'КОРИДОР',   x: 500, y: 40,  w: 400, h: 520, floor: 'wood_hall' },
+            { id: 'bathroom', name: 'ВАННАЯ',    x: 900, y: 40,  w: 460, h: 420, floor: 'tile_bath' },
+            { id: 'living',   name: 'ГОСТИНАЯ',  x: 40,  y: 460, w: 660, h: 500, floor: 'carpet_living' },
+            { id: 'bedroom',  name: 'СПАЛЬНЯ',   x: 700, y: 560, w: 660, h: 400, floor: 'parquet_bed' }
         ];
 
-        // Стены квартиры с дверными проёмами (твёрдые препятствия + блокируют обзор бабки)
+        // Коврик выхода у входной двери вверху Коридора
+        const EXIT_MAT = { x: 635, y: 48, w: 130, h: 68 };
+
+        // Стены квартиры с дверными проёмами
         const WALLS = [
             // Внешний периметр
-            { x: 20, y: 20, w: 1560, h: 24 },
-            { x: 20, y: 1056, w: 1560, h: 24 },
-            { x: 20, y: 20, w: 24, h: 1060 },
-            { x: 1556, y: 20, w: 24, h: 1060 },
+            { x: 20, y: 20, w: 1360, h: 22 },
+            { x: 20, y: 958, w: 1360, h: 22 },
+            { x: 20, y: 20, w: 22, h: 960 },
+            { x: 1358, y: 20, w: 22, h: 960 },
 
-            // Между Кухней и Коридором (x = 560, проём y: 230..370)
-            { x: 550, y: 40, w: 20, h: 190 },
-            { x: 550, y: 370, w: 20, h: 140 },
+            // Между Кухней и Коридором (x = 500, проём y: 210..330)
+            { x: 492, y: 40, w: 16, h: 170 },
+            { x: 492, y: 330, w: 16, h: 138 },
 
-            // Между Коридором и Ванной (x = 1000, проём y: 220..350)
-            { x: 990, y: 40, w: 20, h: 180 },
-            { x: 990, y: 350, w: 20, h: 160 },
+            // Между Коридором и Ванной (x = 900, проём y: 200..320)
+            { x: 892, y: 40, w: 16, h: 160 },
+            { x: 892, y: 320, w: 16, h: 148 },
 
-            // Между Кухней и Гостиной (y = 500, проём x: 220..370)
-            { x: 40, y: 490, w: 180, h: 20 },
-            { x: 370, y: 490, w: 200, h: 20 },
+            // Между Кухней и Гостиной (y = 460, проём x: 200..330)
+            { x: 40, y: 452, w: 160, h: 16 },
+            { x: 330, y: 452, w: 170, h: 16 },
 
-            // Между Ванной и Спальней (y = 500, глухая стена справа, проход в Спальню из Коридора)
-            { x: 990, y: 490, w: 570, h: 20 },
+            // Между Ванной и Спальней (y = 460, глухая стена)
+            { x: 892, y: 452, w: 468, h: 16 },
 
-            // Между Коридором и Гостиной/Спальней (y = 620, проёмы x: 600..730 и x: 830..960)
-            { x: 550, y: 610, w: 50, h: 20 },
-            { x: 730, y: 610, w: 100, h: 20 },
-            { x: 960, y: 610, w: 50, h: 20 },
+            // Между Коридором и Гостиной/Спальней (y = 560, проёмы x: 540..660 и x: 750..870)
+            { x: 492, y: 552, w: 48, h: 16 },
+            { x: 660, y: 552, w: 90, h: 16 },
+            { x: 870, y: 552, w: 38, h: 16 },
 
-            // Между Гостиной и Спальней (x = 780, проём y: 800..940)
-            { x: 770, y: 620, w: 20, h: 180 },
-            { x: 770, y: 940, w: 20, h: 120 }
+            // Между Гостиной и Спальней (x = 700, проём y: 720..845)
+            { x: 692, y: 560, w: 16, h: 160 },
+            { x: 692, y: 845, w: 16, h: 115 }
         ];
 
-        // Мебель: часть препятствия (solid: true), часть укрытия под которыми можно прятаться (hideout: true)
+        // Мебель: препятствия (solid: true) и укрытия (hideout: true)
         const FURNITURE = [
             // Кухня
-            { name: 'Холодильник', x: 65, y: 65, w: 95, h: 95, color: '#e2e8f0', border: '#94a3b8', solid: true, hideout: false, icon: '❄️' },
-            { name: 'Плита', x: 170, y: 65, w: 110, h: 75, color: '#cbd5e1', border: '#64748b', solid: true, hideout: false, icon: '🍳' },
-            { name: 'Кухонный стол', x: 220, y: 230, w: 170, h: 110, color: '#b45309', border: '#78350f', solid: false, hideout: true, icon: '🍽️' },
+            { name: 'Холодильник', x: 60, y: 60, w: 85, h: 85, color: '#e2e8f0', border: '#94a3b8', solid: true, hideout: false, icon: '❄️' },
+            { name: 'Плита', x: 155, y: 60, w: 95, h: 70, color: '#cbd5e1', border: '#64748b', solid: true, hideout: false, icon: '🍳' },
+            { name: 'Кухонный стол', x: 195, y: 215, w: 155, h: 105, color: '#b45309', border: '#78350f', solid: false, hideout: true, icon: '🍽️' },
 
             // Коридор
-            { name: 'Тумба с обувью', x: 660, y: 60, w: 190, h: 60, color: '#92400e', border: '#451a03', solid: true, hideout: false, icon: '👟' },
-            { name: 'Комод', x: 585, y: 420, w: 70, h: 140, color: '#a16207', border: '#713f12', solid: true, hideout: false, icon: '🪴' },
+            { name: 'Тумба', x: 525, y: 375, w: 62, h: 125, color: '#a16207', border: '#713f12', solid: true, hideout: false, icon: '🪴' },
 
             // Ванная
-            { name: 'Ванна', x: 1330, y: 65, w: 200, h: 115, color: '#f0f9ff', border: '#38bdf8', solid: true, hideout: false, icon: '🛁' },
-            { name: 'Стиралка', x: 1035, y: 65, w: 85, h: 85, color: '#f1f5f9', border: '#94a3b8', solid: true, hideout: false, icon: '🌀' },
-            { name: 'Корзина белья', x: 1420, y: 360, w: 100, h: 95, color: '#d97706', border: '#92400e', solid: false, hideout: true, icon: '🧺' },
+            { name: 'Ванна', x: 1165, y: 60, w: 175, h: 100, color: '#f0f9ff', border: '#38bdf8', solid: true, hideout: false, icon: '🛁' },
+            { name: 'Стиралка', x: 930, y: 60, w: 78, h: 78, color: '#f1f5f9', border: '#94a3b8', solid: true, hideout: false, icon: '🌀' },
+            { name: 'Корзина белья', x: 1235, y: 330, w: 95, h: 90, color: '#d97706', border: '#92400e', solid: false, hideout: true, icon: '🧺' },
 
             // Гостиная
-            { name: 'Большой диван', x: 80, y: 660, w: 110, h: 260, color: '#dc2626', border: '#991b1b', solid: true, hideout: false, icon: '🛋️' },
-            { name: 'Журнальный столик', x: 260, y: 730, w: 120, h: 140, color: '#d97706', border: '#78350f', solid: false, hideout: true, icon: '☕' },
-            { name: 'Телевизор', x: 540, y: 720, w: 65, h: 190, color: '#1e293b', border: '#0f172a', solid: true, hideout: false, icon: '📺' },
+            { name: 'Диван', x: 72, y: 600, w: 98, h: 230, color: '#dc2626', border: '#991b1b', solid: true, hideout: false, icon: '🛋️' },
+            { name: 'Журнальный столик', x: 235, y: 670, w: 115, h: 130, color: '#d97706', border: '#78350f', solid: false, hideout: true, icon: '☕' },
+            { name: 'Телевизор', x: 485, y: 655, w: 58, h: 175, color: '#1e293b', border: '#0f172a', solid: true, hideout: false, icon: '📺' },
 
             // Спальня
-            { name: 'Двуспальная кровать', x: 1250, y: 720, w: 260, h: 220, color: '#4f46e5', border: '#312e81', solid: false, hideout: true, icon: '🛏️' },
-            { name: 'Шкаф-купе', x: 920, y: 965, w: 240, h: 75, color: '#78350f', border: '#451a03', solid: true, hideout: false, icon: '🚪' }
+            { name: 'Кровать', x: 1085, y: 645, w: 235, h: 205, color: '#4f46e5', border: '#312e81', solid: false, hideout: true, icon: '🛏️' },
+            { name: 'Шкаф', x: 815, y: 875, w: 215, h: 68, color: '#78350f', border: '#451a03', solid: true, hideout: false, icon: '🚪' }
         ];
 
-        // Точки спавна вкусняшек
+        // 14 вкусняшек по квартире
         const FOOD_SPAWNS = [
-            { x: 120, y: 200, emoji: '🐟' },
-            { x: 460, y: 120, emoji: '🥛' },
-            { x: 300, y: 285, emoji: '🍗' },
-            { x: 470, y: 420, emoji: '🌭' },
-            { x: 750, y: 180, emoji: '🧀' },
-            { x: 880, y: 470, emoji: '🐟' },
-            { x: 1150, y: 140, emoji: '🥛' },
-            { x: 1250, y: 380, emoji: '🐟' },
-            { x: 1470, y: 405, emoji: '🌭' },
-            { x: 140, y: 580, emoji: '🍗' },
-            { x: 320, y: 800, emoji: '🧀' },
-            { x: 130, y: 980, emoji: '🐟' },
-            { x: 670, y: 950, emoji: '🥛' },
-            { x: 1050, y: 720, emoji: '🌭' },
-            { x: 1380, y: 830, emoji: '🍗' }
+            { x: 110, y: 185, emoji: '🐟' },
+            { x: 415, y: 110, emoji: '🥛' },
+            { x: 270, y: 265, emoji: '🍗' },
+            { x: 420, y: 390, emoji: '🌭' },
+            { x: 810, y: 440, emoji: '🧀' },
+            { x: 1040, y: 130, emoji: '🥛' },
+            { x: 1120, y: 345, emoji: '🐟' },
+            { x: 1280, y: 375, emoji: '🌭' },
+            { x: 125, y: 530, emoji: '🍗' },
+            { x: 290, y: 735, emoji: '🧀' },
+            { x: 115, y: 895, emoji: '🐟' },
+            { x: 605, y: 875, emoji: '🥛' },
+            { x: 930, y: 645, emoji: '🌭' },
+            { x: 1200, y: 745, emoji: '🍗' }
         ];
 
         // Маршрут патрулирования Бабки
         const GRANNY_WAYPOINTS = [
-            { x: 760, y: 300 },
-            { x: 380, y: 300 },
-            { x: 295, y: 450 },
-            { x: 300, y: 650 },
-            { x: 660, y: 660 },
-            { x: 890, y: 660 },
-            { x: 1120, y: 820 },
-            { x: 890, y: 660 },
-            { x: 760, y: 300 },
-            { x: 1180, y: 280 }
+            { x: 700, y: 270 },
+            { x: 350, y: 270 },
+            { x: 265, y: 410 },
+            { x: 270, y: 595 },
+            { x: 600, y: 600 },
+            { x: 810, y: 600 },
+            { x: 990, y: 740 },
+            { x: 810, y: 600 },
+            { x: 700, y: 270 },
+            { x: 1060, y: 260 }
         ];
 
         const GRANNY_PHRASES = [
-            'А ну брысь, паразиты!',
-            'Я вам щас хвосты накручу!',
-            'Куда по столу, окаянные?!',
-            'Моя сметана! Стой, кому говорю!',
-            'Щас солью заряжу!',
+            'А ну брысь, хвостатые!',
+            'Кто сметану сожрал?!',
+            'Ща солью заряжу!',
+            'Куда по столу, паразиты?!',
+            'Я вам хвосты-то накручу!',
             'Вот я вас веником!'
         ];
 
         // ==========================================
-        // 3. СОСТОЯНИЕ ИГРЫ И МУЛЬТИПЛЕЕР
+        // 3. СОСТОЯНИЕ ИГРЫ И PEERJS (WEBRTC)
         // ==========================================
-        let db = null;
-        let auth = null;
-        let currentUser = null;
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'cats-vs-granny-default';
-        let firebaseReady = false;
-
+        let peer = null;
+        let conn = null;
         let gameMode = 'none'; // 'solo' | 'online'
         let isHost = false;
         let roomCode = '';
-        let myPlayerId = '';
+        let myPlayerId = 'cat_' + Math.random().toString(36).slice(2, 8);
         let selectedSkin = 'ginger';
-        let roomUnsubscribe = null;
-        let lastSyncSent = 0;
+        let lastNetSend = 0;
 
-        // Локальное состояние матча
+        // Входящие данные от гостя для хоста
+        let guestRemoteInput = null;
+
         const state = {
             status: 'lobby', // 'lobby' | 'playing' | 'won' | 'lost'
             startTime: 0,
             elapsedSec: 0,
-            players: {}, // id -> { id, name, skin, x, y, vx, vy, angle, stamina, downed, reviveProgress, hidden, meowTimer, animPhase }
-            foods: [],   // { id, x, y, emoji, collected }
+            players: {},
+            foods: [],
             granny: {
-                x: 780,
-                y: 300,
-                angle: 0,
-                speed: 145,
-                alertLevel: 0, // 0..100
-                mode: 'patrol', // 'patrol' | 'investigate' | 'chase' | 'aiming' | 'cooldown'
-                targetX: 380,
-                targetY: 300,
-                waypointIdx: 1,
-                aimTimer: 0,
-                aimAngle: 0,
-                phrase: '',
-                phraseTimer: 0
+                x: 700, y: 270, angle: 0, speed: 140, alertLevel: 0,
+                mode: 'patrol', targetX: 350, targetY: 270, waypointIdx: 1,
+                aimTimer: 0, aimAngle: 0, phrase: '', phraseTimer: 0
             },
             particles: [],
             pellets: [],
@@ -581,43 +583,80 @@
         };
 
         // ==========================================
-        // 4. ИНИЦИАЛИЗАЦИЯ FIREBASE (С ЗАЩИТОЙ ОТ ОФЛАЙНА)
+        // 4. ПРЕВЬЮ КОТА В ЛОББИ И UI УТИЛИТЫ
         // ==========================================
-        async function initNetwork() {
-            const dot = document.getElementById('netDot');
-            const text = document.getElementById('netStatusText');
-            try {
-                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
-                    throw new Error('Локальный запуск без облачного конфига');
-                }
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+        function renderCatPreview() {
+            const pCanvas = document.getElementById('catPreviewCanvas');
+            if (!pCanvas) return;
+            const pCtx = pCanvas.getContext('2d');
+            pCtx.clearRect(0, 0, 76, 76);
 
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                currentUser = auth.currentUser;
-                myPlayerId = currentUser ? currentUser.uid : ('cat_' + Math.random().toString(36).slice(2, 9));
-                firebaseReady = true;
+            const skin = CAT_SKINS[selectedSkin] || CAT_SKINS.ginger;
+            pCtx.save();
+            pCtx.translate(38, 42);
 
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
-                text.textContent = 'Онлайн готов! Создай комнату или введи код друга';
-            } catch (err) {
-                console.warn('Режим без облака:', err.message);
-                myPlayerId = 'local_' + Math.random().toString(36).slice(2, 9);
-                firebaseReady = false;
-                dot.className = 'w-2 h-2 rounded-full bg-amber-400';
-                text.textContent = 'Автономный режим (доступна игра с ботом-напарником)';
-            }
+            // Хвост
+            pCtx.strokeStyle = skin.body;
+            pCtx.lineWidth = 6;
+            pCtx.lineCap = 'round';
+            pCtx.beginPath();
+            pCtx.moveTo(12, 6);
+            pCtx.quadraticCurveTo(28, 2, 26, -12);
+            pCtx.stroke();
+
+            // Тело
+            pCtx.fillStyle = skin.body;
+            pCtx.beginPath();
+            pCtx.ellipse(0, 4, 18, 15, 0, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.strokeStyle = '#1e293b';
+            pCtx.lineWidth = 2.5;
+            pCtx.stroke();
+
+            // Голова
+            pCtx.beginPath();
+            pCtx.arc(0, -10, 14, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.stroke();
+
+            // Ушки
+            pCtx.beginPath(); pCtx.moveTo(-12, -16); pCtx.lineTo(-14, -29); pCtx.lineTo(-3, -21); pCtx.closePath(); pCtx.fill(); pCtx.stroke();
+            pCtx.beginPath(); pCtx.moveTo(12, -16); pCtx.lineTo(14, -29); pCtx.lineTo(3, -21); pCtx.closePath(); pCtx.fill(); pCtx.stroke();
+
+            // Глазки
+            pCtx.fillStyle = '#10b981';
+            pCtx.beginPath(); pCtx.arc(-5, -11, 2.8, 0, Math.PI * 2); pCtx.fill();
+            pCtx.beginPath(); pCtx.arc(5, -11, 2.8, 0, Math.PI * 2); pCtx.fill();
+
+            // Носик
+            pCtx.fillStyle = '#fb7185';
+            pCtx.beginPath(); pCtx.arc(0, -7, 2, 0, Math.PI * 2); pCtx.fill();
+
+            pCtx.restore();
         }
-        initNetwork();
+        renderCatPreview();
 
-        function getRoomDocRef(code) {
-            return doc(db, 'artifacts', appId, 'public', 'data', 'cat_rooms', code);
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            const txt = document.getElementById('toastText');
+            txt.textContent = msg;
+            box.classList.remove('opacity-0', '-translate-y-3');
+            box.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                box.classList.add('opacity-0', '-translate-y-3');
+                box.classList.remove('opacity-100', 'translate-y-0');
+            }, 2800);
+        }
+
+        function copyTextFallback(text, successMsg) {
+            const tempInput = document.createElement('input');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast(successMsg);
         }
 
         function generateRoomCode() {
@@ -629,21 +668,70 @@
             return res;
         }
 
-        // ==========================================
-        // 5. УПРАВЛЕНИЕ ЛОББИ И UI
-        // ==========================================
-        function showToast(msg) {
-            const box = document.getElementById('toastBox');
-            const txt = document.getElementById('toastText');
-            txt.textContent = msg;
-            box.classList.remove('opacity-0', '-translate-y-3');
-            box.classList.add('opacity-100', 'translate-y-0');
-            clearTimeout(window._toastTimer);
-            window._toastTimer = setTimeout(() => {
-                box.classList.add('opacity-0', '-translate-y-3');
-                box.classList.remove('opacity-100', 'translate-y-0');
-            }, 2600);
+        function cleanupPeer() {
+            if (conn) {
+                try { conn.close(); } catch (e) {}
+                conn = null;
+            }
+            if (peer) {
+                try { peer.destroy(); } catch (e) {}
+                peer = null;
+            }
+            guestRemoteInput = null;
         }
+
+        function updateLobbyPlayersUI(playersMap) {
+            const listEl = document.getElementById('lobbyPlayersList');
+            listEl.innerHTML = '';
+            const pList = Object.values(playersMap);
+
+            pList.forEach(p => {
+                const skinInfo = CAT_SKINS[p.skin] || CAT_SKINS.ginger;
+                const card = document.createElement('div');
+                card.className = 'flex items-center gap-3 bg-slate-800/90 border border-white/15 p-3 rounded-2xl';
+                card.innerHTML = `
+                    <span class="w-8 h-8 rounded-full border-2 border-white flex-shrink-0" style="background:${skinInfo.body}"></span>
+                    <div class="min-w-0">
+                        <div class="font-bold text-sm text-white truncate">${p.name} ${p.isHost ? '👑' : ''}</div>
+                        <div class="text-xs text-slate-400">${skinInfo.name}</div>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+
+            if (pList.length < 2) {
+                const empty = document.createElement('div');
+                empty.className = 'flex items-center justify-center gap-2 border-2 border-dashed border-slate-700 p-3 rounded-2xl text-xs text-slate-400';
+                empty.textContent = '⏳ Ожидаем второго кота...';
+                listEl.appendChild(empty);
+            }
+
+            const startBtn = document.getElementById('btnStartOnlineGame');
+            const badge = document.getElementById('waitingStatusBadge');
+            if (isHost) {
+                if (pList.length >= 2) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = '🚀 НАЧАТЬ ИГРУ!';
+                    badge.textContent = '✅ Друг подключился! Можно начинать!';
+                    badge.className = 'text-xs font-bold text-emerald-400 pt-1';
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.textContent = 'Ждём второго кота...';
+                    badge.textContent = '⏳ Ожидаем подключения друга по коду...';
+                    badge.className = 'text-xs font-bold text-amber-300 pt-1';
+                }
+            } else {
+                startBtn.disabled = true;
+                startBtn.textContent = 'Ожидание старта от хоста...';
+                badge.textContent = '✅ Подключено к комнате! Ждём старт хоста...';
+                badge.className = 'text-xs font-bold text-emerald-400 pt-1';
+            }
+        }
+
+        // ==========================================
+        // 5. ЛОГИКА PEERJS: ХОСТ И ГОСТЬ
+        // ==========================================
+        let lobbyPlayers = {};
 
         // Выбор окраса кота
         document.querySelectorAll('.skin-btn').forEach(btn => {
@@ -657,61 +745,115 @@
                 btn.classList.remove('border-transparent', 'bg-slate-800/70');
                 btn.classList.add('border-amber-400', 'bg-slate-800');
                 selectedSkin = btn.dataset.skin;
+                renderCatPreview();
             });
         });
 
-        // Создать комнату
-        document.getElementById('btnCreateRoom').addEventListener('click', async () => {
+        // Автозаполнение кода комнаты из URL (?room=XXXX)
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomFromUrl = urlParams.get('room');
+        if (roomFromUrl) {
+            document.getElementById('inputJoinCode').value = roomFromUrl.trim().toUpperCase().slice(0, 4);
+            showToast('Код комнаты ' + roomFromUrl.toUpperCase() + ' подставлен из ссылки! Нажми «Войти»');
+        }
+
+        // Создать комнату (Хост)
+        document.getElementById('btnCreateRoom').addEventListener('click', () => {
             sfx.init();
-            if (!firebaseReady) {
-                showToast('Для онлайна запусти игру в облаке или нажми «Играть одному»!');
+            if (typeof Peer === 'undefined') {
+                showToast('Не удалось загрузить PeerJS. Проверь интернет!');
                 return;
             }
+            cleanupPeer();
+
             const catName = (document.getElementById('inputCatName').value.trim() || 'Рыжик').slice(0, 14);
             roomCode = generateRoomCode();
             isHost = true;
             gameMode = 'online';
 
-            const initialRoom = {
-                code: roomCode,
-                status: 'waiting',
-                hostId: myPlayerId,
-                createdAt: Date.now(),
-                players: {
-                    [myPlayerId]: {
-                        id: myPlayerId,
-                        name: catName,
-                        skin: selectedSkin,
-                        x: 640,
-                        y: 150,
-                        angle: 0,
-                        stamina: 100,
-                        downed: false,
-                        reviveProgress: 0,
-                        hidden: false,
-                        meowTimer: 0
-                    }
-                },
-                foods: FOOD_SPAWNS.map((f, idx) => ({ id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false })),
-                granny: null
-            };
+            const btnCreate = document.getElementById('btnCreateRoom');
+            btnCreate.disabled = true;
+            btnCreate.textContent = '⏳ Создаём комнату...';
 
-            try {
-                await setDoc(getRoomDocRef(roomCode), initialRoom);
-                openWaitingRoom(roomCode);
-                subscribeToRoom(roomCode);
+            peer = new Peer(PEER_PREFIX + roomCode, { debug: 1 });
+
+            peer.on('open', () => {
+                btnCreate.disabled = false;
+                btnCreate.innerHTML = '<span>🏠</span> Создать комнату';
+
+                lobbyPlayers = {
+                    [myPlayerId]: { id: myPlayerId, name: catName, skin: selectedSkin, isHost: true }
+                };
+
+                document.getElementById('stepSetup').classList.add('hidden');
+                document.getElementById('stepWaitingRoom').classList.remove('hidden');
+                document.getElementById('displayRoomCode').textContent = roomCode;
+                updateLobbyPlayersUI(lobbyPlayers);
                 sfx.playMeow(620);
-            } catch (e) {
-                console.error(e);
-                showToast('Ошибка создания комнаты. Попробуй ещё раз!');
-            }
+            });
+
+            peer.on('connection', (incomingConn) => {
+                if (conn && conn.open) {
+                    incomingConn.on('open', () => {
+                        incomingConn.send({ type: 'full' });
+                        setTimeout(() => incomingConn.close(), 200);
+                    });
+                    return;
+                }
+                conn = incomingConn;
+                setupHostConnection(conn);
+            });
+
+            peer.on('error', (err) => {
+                btnCreate.disabled = false;
+                btnCreate.innerHTML = '<span>🏠</span> Создать комнату';
+                if (err.type === 'unavailable-id') {
+                    // Код случайно совпал — пробуем снова
+                    document.getElementById('btnCreateRoom').click();
+                } else {
+                    showToast('Ошибка сети: ' + err.type);
+                }
+            });
         });
 
-        // Войти в комнату по коду
-        document.getElementById('btnJoinRoom').addEventListener('click', async () => {
+        function setupHostConnection(connection) {
+            connection.on('data', (msg) => {
+                if (!msg || typeof msg !== 'object') return;
+
+                if (msg.type === 'join') {
+                    lobbyPlayers[msg.player.id] = {
+                        id: msg.player.id,
+                        name: (msg.player.name || 'Дымок').slice(0, 14),
+                        skin: msg.player.skin || 'smoke',
+                        isHost: false
+                    };
+                    updateLobbyPlayersUI(lobbyPlayers);
+                    showToast('🐱 ' + lobbyPlayers[msg.player.id].name + ' зашёл в комнату!');
+                    sfx.playMeow(490);
+                    connection.send({ type: 'lobby_update', players: lobbyPlayers });
+                } else if (msg.type === 'guest_input') {
+                    guestRemoteInput = msg.data;
+                }
+            });
+
+            connection.on('close', () => {
+                showToast('⚠️ Друг отключился от комнаты!');
+                const guestId = Object.keys(lobbyPlayers).find(id => id !== myPlayerId);
+                if (guestId) delete lobbyPlayers[guestId];
+                guestRemoteInput = null;
+                if (state.status === 'lobby') {
+                    updateLobbyPlayersUI(lobbyPlayers);
+                } else {
+                    returnToLobbyOnDisconnect();
+                }
+            });
+        }
+
+        // Войти по коду (Гость)
+        document.getElementById('btnJoinRoom').addEventListener('click', () => {
             sfx.init();
-            if (!firebaseReady) {
-                showToast('Онлайн недоступен в автономном файле — жми «Играть одному»!');
+            if (typeof Peer === 'undefined') {
+                showToast('Не удалось загрузить PeerJS. Проверь интернет!');
                 return;
             }
             const code = document.getElementById('inputJoinCode').value.trim().toUpperCase();
@@ -719,210 +861,161 @@
                 showToast('Введи 4-значный код комнаты!');
                 return;
             }
+
+            cleanupPeer();
             const catName = (document.getElementById('inputCatName').value.trim() || 'Дымок').slice(0, 14);
+            roomCode = code;
+            isHost = false;
+            gameMode = 'online';
 
-            try {
-                const snap = await getDoc(getRoomDocRef(code));
-                if (!snap.exists()) {
-                    showToast('Комната с кодом ' + code + ' не найдена!');
-                    return;
-                }
-                const data = snap.data();
-                const playerIds = Object.keys(data.players || {});
-                if (playerIds.length >= 2 && !data.players[myPlayerId]) {
-                    showToast('В этой комнате уже два кота!');
-                    return;
-                }
+            const btnJoin = document.getElementById('btnJoinRoom');
+            btnJoin.disabled = true;
+            btnJoin.textContent = '⏳...';
+            showToast('Подключение к комнате ' + code + '...');
 
-                roomCode = code;
-                isHost = data.hostId === myPlayerId;
-                gameMode = 'online';
+            peer = new Peer({ debug: 1 });
 
-                await updateDoc(getRoomDocRef(code), {
-                    [`players.${myPlayerId}`]: {
-                        id: myPlayerId,
-                        name: catName,
-                        skin: selectedSkin,
-                        x: 720,
-                        y: 150,
-                        angle: 0,
-                        stamina: 100,
-                        downed: false,
-                        reviveProgress: 0,
-                        hidden: false,
-                        meowTimer: 0
+            peer.on('open', () => {
+                conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+
+                const connectTimeout = setTimeout(() => {
+                    if (!conn || !conn.open) {
+                        btnJoin.disabled = false;
+                        btnJoin.textContent = 'Войти по коду →';
+                        showToast('Комната ' + code + ' не найдена или хост не в сети');
+                        cleanupPeer();
+                    }
+                }, 7500);
+
+                conn.on('open', () => {
+                    clearTimeout(connectTimeout);
+                    btnJoin.disabled = false;
+                    btnJoin.textContent = 'Войти по коду →';
+
+                    document.getElementById('stepSetup').classList.add('hidden');
+                    document.getElementById('stepWaitingRoom').classList.remove('hidden');
+                    document.getElementById('displayRoomCode').textContent = roomCode;
+
+                    conn.send({
+                        type: 'join',
+                        player: { id: myPlayerId, name: catName, skin: selectedSkin }
+                    });
+                    sfx.playMeow(510);
+                });
+
+                conn.on('data', (msg) => {
+                    if (!msg || typeof msg !== 'object') return;
+
+                    if (msg.type === 'full') {
+                        showToast('В этой комнате уже два кота!');
+                        backToSetupScreen();
+                    } else if (msg.type === 'lobby_update') {
+                        lobbyPlayers = msg.players;
+                        updateLobbyPlayersUI(lobbyPlayers);
+                    } else if (msg.type === 'start_game') {
+                        launchMatch(msg.initialState);
+                    } else if (msg.type === 'world_state') {
+                        applyHostWorldState(msg.state);
+                    } else if (msg.type === 'game_over') {
+                        finishGame(msg.isWin);
                     }
                 });
 
-                openWaitingRoom(code);
-                subscribeToRoom(code);
-                sfx.playMeow(500);
-            } catch (e) {
-                console.error(e);
-                showToast('Не удалось подключиться к комнате');
-            }
+                conn.on('close', () => {
+                    showToast('⚠️ Связь с хостом потеряна');
+                    returnToLobbyOnDisconnect();
+                });
+
+                conn.on('error', () => {
+                    clearTimeout(connectTimeout);
+                    btnJoin.disabled = false;
+                    btnJoin.textContent = 'Войти по коду →';
+                    showToast('Не удалось подключиться к комнате ' + code);
+                });
+            });
+
+            peer.on('error', (err) => {
+                btnJoin.disabled = false;
+                btnJoin.textContent = 'Войти по коду →';
+                if (err.type === 'peer-unavailable') {
+                    showToast('Комната ' + code + ' не найдена! Проверь код.');
+                } else {
+                    showToast('Ошибка подключения: ' + err.type);
+                }
+            });
         });
 
-        // Копировать код комнаты
-        document.getElementById('btnCopyCode').addEventListener('click', () => {
-            const tempInput = document.createElement('input');
-            tempInput.value = roomCode;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            showToast('Код ' + roomCode + ' скопирован! Отправь его другу 🐾');
-        });
-
-        function openWaitingRoom(code) {
-            document.getElementById('stepSetup').classList.add('hidden');
-            document.getElementById('stepWaitingRoom').classList.remove('hidden');
-            document.getElementById('displayRoomCode').textContent = code;
+        function returnToLobbyOnDisconnect() {
+            state.status = 'lobby';
+            document.getElementById('gameHud').classList.add('hidden');
+            document.getElementById('controlsHint').classList.add('hidden');
+            document.getElementById('endGameOverlay').classList.add('hidden');
+            document.getElementById('lobbyOverlay').classList.remove('hidden');
+            backToSetupScreen();
         }
 
-        document.getElementById('btnBackToSetup').addEventListener('click', () => {
-            if (roomUnsubscribe) {
-                roomUnsubscribe();
-                roomUnsubscribe = null;
-            }
+        function backToSetupScreen() {
+            cleanupPeer();
             gameMode = 'none';
             document.getElementById('stepWaitingRoom').classList.add('hidden');
             document.getElementById('stepSetup').classList.remove('hidden');
-        });
-
-        // Подписка на обновления комнаты
-        function subscribeToRoom(code) {
-            if (roomUnsubscribe) roomUnsubscribe();
-            roomUnsubscribe = onSnapshot(getRoomDocRef(code), (snap) => {
-                if (!snap.exists()) return;
-                const data = snap.data();
-                const playersObj = data.players || {};
-                const pList = Object.values(playersObj);
-
-                // Обновляем список игроков в лобби
-                const listEl = document.getElementById('lobbyPlayersList');
-                listEl.innerHTML = '';
-                pList.forEach(p => {
-                    const skinInfo = CAT_SKINS[p.skin] || CAT_SKINS.ginger;
-                    const card = document.createElement('div');
-                    card.className = 'flex items-center gap-3 bg-slate-800/90 border border-white/15 p-3 rounded-2xl';
-                    card.innerHTML = `
-                        <span class="w-8 h-8 rounded-full border-2 border-white flex-shrink-0" style="background:${skinInfo.body}"></span>
-                        <div class="min-w-0">
-                            <div class="font-bold text-sm text-white truncate">${p.name} ${p.id === data.hostId ? '👑' : ''}</div>
-                            <div class="text-xs text-slate-400">${skinInfo.name}</div>
-                        </div>
-                    `;
-                    listEl.appendChild(card);
-                });
-
-                if (pList.length < 2) {
-                    const empty = document.createElement('div');
-                    empty.className = 'flex items-center justify-center gap-2 border-2 border-dashed border-slate-700 p-3 rounded-2xl text-xs text-slate-400';
-                    empty.textContent = '⏳ Ожидаем второго кота...';
-                    listEl.appendChild(empty);
-                }
-
-                const startBtn = document.getElementById('btnStartOnlineGame');
-                if (isHost) {
-                    if (pList.length >= 2) {
-                        startBtn.disabled = false;
-                        startBtn.textContent = '🚀 НАЧАТЬ ОХОТУ ЗА ЕДОЙ!';
-                    } else {
-                        startBtn.disabled = true;
-                        startBtn.textContent = 'Ждём второго кота...';
-                    }
-                } else {
-                    startBtn.disabled = true;
-                    startBtn.textContent = 'Ждём, пока хост начнёт игру...';
-                }
-
-                // Переход в игру
-                if (data.status === 'playing' && state.status !== 'playing') {
-                    launchMatch(data);
-                }
-
-                // Синхронизация во время игры
-                if (data.status === 'playing' && state.status === 'playing') {
-                    // Обновляем напарника
-                    for (const pid of Object.keys(playersObj)) {
-                        if (pid !== myPlayerId) {
-                            const remote = playersObj[pid];
-                            if (!state.players[pid]) {
-                                state.players[pid] = { ...remote, animPhase: 0 };
-                            } else {
-                                // Плавная интерполяция позиции друга
-                                state.players[pid].targetX = remote.x;
-                                state.players[pid].targetY = remote.y;
-                                state.players[pid].angle = remote.angle;
-                                state.players[pid].downed = remote.downed;
-                                state.players[pid].reviveProgress = remote.reviveProgress;
-                                state.players[pid].hidden = remote.hidden;
-                                if (remote.meowTimer > 0 && state.players[pid].meowTimer <= 0) {
-                                    sfx.playMeow(470);
-                                    spawnSoundRing(remote.x, remote.y);
-                                }
-                                state.players[pid].meowTimer = remote.meowTimer;
-                            }
-                        }
-                    }
-
-                    // Если мы гость — принимаем еду и бабку от хоста
-                    if (!isHost) {
-                        if (Array.isArray(data.foods)) {
-                            data.foods.forEach((rf, i) => {
-                                if (state.foods[i] && !state.foods[i].collected && rf.collected) {
-                                    sfx.playEat();
-                                    spawnFoodParticles(rf.x, rf.y);
-                                }
-                                state.foods[i] = rf;
-                            });
-                        }
-                        if (data.granny) {
-                            const prevMode = state.granny.mode;
-                            Object.assign(state.granny, data.granny);
-                            if (prevMode !== 'aiming' && state.granny.mode === 'aiming') {
-                                sfx.playGrannyAlert();
-                            }
-                            if (prevMode === 'aiming' && state.granny.mode === 'cooldown') {
-                                sfx.playShotgun();
-                                triggerShotgunVisuals(state.granny.x, state.granny.y, state.granny.aimAngle);
-                            }
-                        }
-                    }
-                }
-
-                if ((data.status === 'won' || data.status === 'lost') && state.status === 'playing') {
-                    finishGame(data.status === 'won');
-                }
-            }, (err) => {
-                console.error('Ошибка синхронизации комнаты:', err);
-            });
         }
 
-        // Хост нажимает "Начать игру"
-        document.getElementById('btnStartOnlineGame').addEventListener('click', async () => {
-            if (!isHost || !roomCode) return;
-            sfx.init();
-            const freshFoods = FOOD_SPAWNS.map((f, idx) => ({ id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false }));
-            await updateDoc(getRoomDocRef(roomCode), {
-                status: 'playing',
-                foods: freshFoods,
-                granny: {
-                    x: 780, y: 300, angle: 0, speed: 145, alertLevel: 0,
-                    mode: 'patrol', targetX: 380, targetY: 300, waypointIdx: 1,
-                    aimTimer: 0, aimAngle: 0, phrase: '', phraseTimer: 0
-                }
-            });
+        document.getElementById('btnBackToSetup').addEventListener('click', backToSetupScreen);
+
+        // Копировать код / ссылку
+        document.getElementById('btnCopyCode').addEventListener('click', () => {
+            copyTextFallback(roomCode, 'Код комнаты ' + roomCode + ' скопирован! 🐾');
         });
 
-        // Режим "Играть одному с ботом-напарником"
+        document.getElementById('btnCopyLink').addEventListener('click', () => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', roomCode);
+            copyTextFallback(url.toString(), 'Прямая ссылка с кодом скопирована! Отправь другу 🔗');
+        });
+
+        // Хост нажимает «Начать игру!»
+        document.getElementById('btnStartOnlineGame').addEventListener('click', () => {
+            if (!isHost || !conn || !conn.open) return;
+            sfx.init();
+
+            const initialPlayers = {};
+            const pKeys = Object.keys(lobbyPlayers);
+            pKeys.forEach((pid, idx) => {
+                const lp = lobbyPlayers[pid];
+                initialPlayers[pid] = {
+                    id: lp.id,
+                    name: lp.name,
+                    skin: lp.skin,
+                    x: idx === 0 ? 660 : 735,
+                    y: 155,
+                    angle: Math.PI / 2,
+                    stamina: 100,
+                    downed: false,
+                    reviveProgress: 0,
+                    hidden: false,
+                    meowTimer: 0
+                };
+            });
+
+            const initialFoods = FOOD_SPAWNS.map((f, idx) => ({
+                id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false
+            }));
+
+            const initialData = { players: initialPlayers, foods: initialFoods };
+            conn.send({ type: 'start_game', initialState: initialData });
+            launchMatch(initialData);
+        });
+
+        // Режим «Играть одному (с котом-ботом)»
         document.getElementById('btnSoloMode').addEventListener('click', () => {
             sfx.init();
             sfx.playMeow(560);
+            cleanupPeer();
             gameMode = 'solo';
             isHost = true;
             roomCode = 'SOLO';
+
             const catName = (document.getElementById('inputCatName').value.trim() || 'Рыжик').slice(0, 14);
             const botSkin = selectedSkin === 'smoke' ? 'ginger' : 'smoke';
 
@@ -930,12 +1023,12 @@
                 players: {
                     [myPlayerId]: {
                         id: myPlayerId, name: catName, skin: selectedSkin,
-                        x: 640, y: 150, angle: 0, stamina: 100,
+                        x: 660, y: 155, angle: Math.PI / 2, stamina: 100,
                         downed: false, reviveProgress: 0, hidden: false, meowTimer: 0
                     },
                     ['bot_partner']: {
                         id: 'bot_partner', name: 'Дымок (Бот)', skin: botSkin, isBot: true,
-                        x: 730, y: 150, angle: 0, stamina: 100,
+                        x: 735, y: 155, angle: Math.PI / 2, stamina: 100,
                         downed: false, reviveProgress: 0, hidden: false, meowTimer: 0
                     }
                 },
@@ -944,8 +1037,7 @@
             launchMatch(soloData);
         });
 
-        // Запуск матча
-        function launchMatch(roomData) {
+        function launchMatch(matchData) {
             document.getElementById('lobbyOverlay').classList.add('hidden');
             document.getElementById('endGameOverlay').classList.add('hidden');
             document.getElementById('gameHud').classList.remove('hidden');
@@ -960,9 +1052,10 @@
 
             state.status = 'playing';
             state.startTime = performance.now();
+            state.elapsedSec = 0;
             state.players = {};
 
-            for (const [pid, p] of Object.entries(roomData.players)) {
+            for (const [pid, p] of Object.entries(matchData.players)) {
                 state.players[pid] = {
                     ...p,
                     targetX: p.x,
@@ -971,19 +1064,15 @@
                 };
             }
 
-            state.foods = (roomData.foods || FOOD_SPAWNS.map((f, idx) => ({
-                id: idx, x: f.x, y: f.y, emoji: f.emoji, collected: false
-            }))).map(f => ({ ...f }));
-
+            state.foods = matchData.foods.map(f => ({ ...f }));
             state.granny = {
-                x: 780, y: 300, angle: 0, speed: 145, alertLevel: 0,
-                mode: 'patrol', targetX: 380, targetY: 300, waypointIdx: 1,
-                aimTimer: 0, aimAngle: 0, phrase: 'Ох, поясница...', phraseTimer: 3.0
+                x: 700, y: 270, angle: 0, speed: 140, alertLevel: 0,
+                mode: 'patrol', targetX: 350, targetY: 270, waypointIdx: 1,
+                aimTimer: 0, aimAngle: 0, phrase: 'Ох, поясница...', phraseTimer: 2.8
             };
             state.particles = [];
             state.pellets = [];
             state.soundRings = [];
-
             updateHud();
         }
 
@@ -993,6 +1082,9 @@
             document.getElementById('gameHud').classList.add('hidden');
             document.getElementById('controlsHint').classList.add('hidden');
             document.getElementById('lobbyOverlay').classList.remove('hidden');
+            if (gameMode === 'online') {
+                backToSetupScreen();
+            }
         });
 
         document.getElementById('btnEndToMenu').addEventListener('click', () => {
@@ -1001,9 +1093,12 @@
             document.getElementById('gameHud').classList.add('hidden');
             document.getElementById('controlsHint').classList.add('hidden');
             document.getElementById('lobbyOverlay').classList.remove('hidden');
+            if (gameMode === 'online') {
+                backToSetupScreen();
+            }
         });
 
-        document.getElementById('btnPlayAgain').addEventListener('click', async () => {
+        document.getElementById('btnPlayAgain').addEventListener('click', () => {
             if (gameMode === 'solo') {
                 document.getElementById('btnSoloMode').click();
             } else if (gameMode === 'online' && isHost) {
@@ -1019,11 +1114,12 @@
         });
 
         // ==========================================
-        // 6. ВВОД (КЛАВИАТУРА И СЕНСОРНЫЙ ДЖОЙСТИК)
+        // 6. УПРАВЛЕНИЕ (КЛАВИАТУРА И СЕНСОРНЫЙ ДЖОЙСТИК)
         // ==========================================
         const keys = {};
         let joyVec = { x: 0, y: 0 };
         let mobileSprint = false;
+        let pendingMeowAction = false;
 
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
@@ -1035,7 +1131,6 @@
             keys[e.code] = false;
         });
 
-        // Мобильный джойстик
         const joyZone = document.getElementById('joystickZone');
         const joyKnob = document.getElementById('joystickKnob');
         let joyTouchId = null;
@@ -1092,10 +1187,10 @@
             const me = state.players[myPlayerId];
             if (!me || me.downed || me.meowTimer > 0) return;
             me.meowTimer = 1.6;
+            pendingMeowAction = true;
             sfx.playMeow(540);
             spawnSoundRing(me.x, me.y);
 
-            // Если мы хост — бабка слышит мяуканье в радиусе 520px
             if (isHost) {
                 alertGrannyToSound(me.x, me.y);
             }
@@ -1104,7 +1199,7 @@
         function alertGrannyToSound(sx, sy) {
             const g = state.granny;
             const d = Math.hypot(g.x - sx, g.y - sy);
-            if (d < 560 && g.mode !== 'chase' && g.mode !== 'aiming') {
+            if (d < 540 && g.mode !== 'chase' && g.mode !== 'aiming') {
                 g.mode = 'investigate';
                 g.targetX = sx;
                 g.targetY = sy;
@@ -1116,22 +1211,12 @@
         }
 
         // ==========================================
-        // 7. ФИЗИКА, КОЛЛИЗИИ И ГЕОМЕТРИЯ ОБЗОРА
+        // 7. ФИЗИКА И КОЛЛИЗИИ
         // ==========================================
-        function circleRectCollide(cx, cy, r, rect) {
-            const closestX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
-            const closestY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
-            const dx = cx - closestX;
-            const dy = cy - closestY;
-            return (dx * dx + dy * dy) < (r * r);
-        }
-
         function resolveObstacles(entity, radius) {
-            // Стены
             for (const w of WALLS) {
                 pushOutOfRect(entity, radius, w);
             }
-            // Твёрдая мебель
             for (const f of FURNITURE) {
                 if (f.solid) {
                     pushOutOfRect(entity, radius, f);
@@ -1153,7 +1238,6 @@
             }
         }
 
-        // Проверка прямой видимости между двумя точками (блокируется стенами)
         function hasLineOfSight(x1, y1, x2, y2) {
             for (const w of WALLS) {
                 if (lineIntersectsRect(x1, y1, x2, y2, w)) return false;
@@ -1184,8 +1268,20 @@
             return a;
         }
 
+        function isInsideHideout(x, y) {
+            return FURNITURE.some(f => f.hideout &&
+                x > f.x + 8 && x < f.x + f.w - 8 &&
+                y > f.y + 8 && y < f.y + f.h - 8
+            );
+        }
+
+        function isOnExitMat(x, y) {
+            return x > EXIT_MAT.x && x < EXIT_MAT.x + EXIT_MAT.w &&
+                   y > EXIT_MAT.y && y < EXIT_MAT.y + EXIT_MAT.h;
+        }
+
         // ==========================================
-        // 8. ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ (UPDATE)
+        // 8. ОБНОВЛЕНИЕ МИРА И СИНХРОНИЗАЦИЯ P2P
         // ==========================================
         function updateGame(dt) {
             if (state.status !== 'playing') return;
@@ -1194,9 +1290,9 @@
             const me = state.players[myPlayerId];
             if (!me) return;
 
-            // --- А. Движение нашего кота ---
             if (me.meowTimer > 0) me.meowTimer = Math.max(0, me.meowTimer - dt);
 
+            // --- А. Локальное движение нашего кота ---
             if (!me.downed) {
                 let ix = joyVec.x;
                 let iy = joyVec.y;
@@ -1220,7 +1316,7 @@
                     me.stamina = Math.min(100, me.stamina + 24 * dt);
                 }
 
-                const speed = isSprinting ? 295 : 185;
+                const speed = isSprinting ? 290 : 185;
                 if (mag > 0.05) {
                     me.x += ix * speed * dt;
                     me.y += iy * speed * dt;
@@ -1238,79 +1334,110 @@
                     }
                 }
 
-                resolveObstacles(me, 18);
-
-                // Проверка укрытий (под столом / кроватью / за корзиной)
-                me.hidden = FURNITURE.some(f => f.hideout &&
-                    me.x > f.x + 8 && me.x < f.x + f.w - 8 &&
-                    me.y > f.y + 8 && me.y < f.y + f.h - 8
-                );
+                resolveObstacles(me, 17);
+                me.hidden = isInsideHideout(me.x, me.y);
             } else {
                 me.hidden = false;
             }
 
-            // --- Б. Обновление напарника (Интерполяция в онлайне или ИИ-бот в соло) ---
+            // --- Б. Применение данных напарника (онлайн или бот) ---
             for (const pid of Object.keys(state.players)) {
                 if (pid === myPlayerId) continue;
                 const partner = state.players[pid];
                 if (partner.meowTimer > 0) partner.meowTimer = Math.max(0, partner.meowTimer - dt);
 
                 if (gameMode === 'online') {
-                    const dx = (partner.targetX ?? partner.x) - partner.x;
-                    const dy = (partner.targetY ?? partner.y) - partner.y;
-                    if (Math.hypot(dx, dy) > 1) {
-                        partner.x += dx * Math.min(1, dt * 14);
-                        partner.y += dy * Math.min(1, dt * 14);
-                        partner.animPhase = (partner.animPhase || 0) + dt * 12;
+                    if (isHost && guestRemoteInput) {
+                        // Хост принимает координаты и действия гостя
+                        const dx = guestRemoteInput.x - partner.x;
+                        const dy = guestRemoteInput.y - partner.y;
+                        if (Math.hypot(dx, dy) > 1) {
+                            partner.animPhase = (partner.animPhase || 0) + dt * 13;
+                        }
+                        if (!partner.downed) {
+                            partner.x = guestRemoteInput.x;
+                            partner.y = guestRemoteInput.y;
+                            partner.angle = guestRemoteInput.angle;
+                            resolveObstacles(partner, 17);
+                            partner.hidden = isInsideHideout(partner.x, partner.y);
+                        }
+                        if (guestRemoteInput.meow) {
+                            guestRemoteInput.meow = false;
+                            partner.meowTimer = 1.6;
+                            sfx.playMeow(475);
+                            spawnSoundRing(partner.x, partner.y);
+                            alertGrannyToSound(partner.x, partner.y);
+                        }
+                    } else if (!isHost) {
+                        // Гость плавно интерполирует позицию хоста
+                        const dx = (partner.targetX ?? partner.x) - partner.x;
+                        const dy = (partner.targetY ?? partner.y) - partner.y;
+                        if (Math.hypot(dx, dy) > 1) {
+                            partner.x += dx * Math.min(1, dt * 16);
+                            partner.y += dy * Math.min(1, dt * 16);
+                            partner.animPhase = (partner.animPhase || 0) + dt * 13;
+                        }
                     }
                 } else if (partner.isBot && !partner.downed) {
                     updateBotPartner(partner, me, dt);
                 }
             }
 
-            // --- В. Сбор еды и спасение напарника ---
-            for (const cat of Object.values(state.players)) {
-                if (cat.downed) continue;
+            // --- В. Авторитативная симуляция мира (выполняет Хост или Соло) ---
+            if (isHost) {
+                for (const cat of Object.values(state.players)) {
+                    if (cat.downed) continue;
 
-                // Сбор вкусняшек
-                for (const food of state.foods) {
-                    if (!food.collected && Math.hypot(cat.x - food.x, cat.y - food.y) < 32) {
-                        food.collected = true;
-                        sfx.playEat();
-                        spawnFoodParticles(food.x, food.y);
-                        updateHud();
+                    // Сбор вкусняшек
+                    for (const food of state.foods) {
+                        if (!food.collected && Math.hypot(cat.x - food.x, cat.y - food.y) < 30) {
+                            food.collected = true;
+                            sfx.playEat();
+                            spawnFoodParticles(food.x, food.y);
+                        }
                     }
-                }
 
-                // Спасение оглушённого друга (просто подойти вплотную на 2 сек)
-                for (const other of Object.values(state.players)) {
-                    if (other.id !== cat.id && other.downed) {
-                        const dist = Math.hypot(cat.x - other.x, cat.y - other.y);
-                        if (dist < 46) {
-                            other.reviveProgress = Math.min(100, (other.reviveProgress || 0) + 52 * dt);
-                            if (other.reviveProgress >= 100) {
-                                other.downed = false;
-                                other.reviveProgress = 0;
-                                sfx.playRevive();
-                                showToast('💖 Напарник спасён!');
-                                spawnFoodParticles(other.x, other.y, '#f43f5e');
+                    // Спасение оглушённого напарника (1.5 сек рядом)
+                    for (const other of Object.values(state.players)) {
+                        if (other.id !== cat.id && other.downed) {
+                            const dist = Math.hypot(cat.x - other.x, cat.y - other.y);
+                            if (dist < 46) {
+                                other.reviveProgress = Math.min(100, (other.reviveProgress || 0) + 68 * dt);
+                                if (other.reviveProgress >= 100) {
+                                    other.downed = false;
+                                    other.reviveProgress = 0;
+                                    sfx.playRevive();
+                                    showToast('💖 Напарник поднят на лапки!');
+                                    spawnFoodParticles(other.x, other.y, '#f43f5e');
+                                }
+                            } else {
+                                other.reviveProgress = Math.max(0, (other.reviveProgress || 0) - 22 * dt);
                             }
-                        } else {
-                            other.reviveProgress = Math.max(0, (other.reviveProgress || 0) - 20 * dt);
                         }
                     }
                 }
-            }
 
-            // --- Г. ИИ Бабки с дробовиком (выполняет хост) ---
-            if (isHost) {
+                // ИИ Бабки
                 updateGrannyAI(dt);
+
+                // Проверка условий победы и поражения
+                const collectedCount = state.foods.filter(f => f.collected).length;
+                const allCats = Object.values(state.players);
+
+                if (allCats.length > 0 && allCats.every(c => c.downed)) {
+                    finishGame(false);
+                } else if (collectedCount >= TOTAL_FOOD) {
+                    // Вся еда собрана — коты должны добежать до входного коврика!
+                    const aliveCats = allCats.filter(c => !c.downed);
+                    if (aliveCats.length > 0 && aliveCats.every(c => isOnExitMat(c.x, c.y))) {
+                        finishGame(true);
+                    }
+                }
             }
 
-            // --- Д. Частицы, дробь и звуковые волны ---
+            // --- Г. Частицы, дробь, звуковые волны и камера ---
             updateEffects(dt);
 
-            // --- Е. Камера ---
             const targetCamX = me.x - canvas.width / 2;
             const targetCamY = me.y - canvas.height / 2;
             state.camera.x += (targetCamX - state.camera.x) * Math.min(1, dt * 8);
@@ -1319,43 +1446,140 @@
             state.camera.y = Math.max(-40, Math.min(MAP_H - canvas.height + 40, state.camera.y));
             if (state.camera.shake > 0) state.camera.shake = Math.max(0, state.camera.shake - dt * 25);
 
-            // --- Ж. Проверка победы / поражения ---
-            const collectedCount = state.foods.filter(f => f.collected).length;
-            if (collectedCount >= TOTAL_FOOD) {
-                finishGame(true);
-            } else {
-                const allCats = Object.values(state.players);
-                if (allCats.length > 0 && allCats.every(c => c.downed)) {
-                    finishGame(false);
+            // --- Д. Обмен пакетами PeerJS (~25 раз в секунду) ---
+            if (gameMode === 'online' && conn && conn.open && performance.now() - lastNetSend > 40) {
+                lastNetSend = performance.now();
+                if (isHost) {
+                    sendHostWorldState();
+                } else {
+                    sendGuestInput();
                 }
-            }
-
-            // --- З. Отправка данных в Firestore (раз в ~90мс) ---
-            if (gameMode === 'online' && performance.now() - lastSyncSent > 90) {
-                lastSyncSent = performance.now();
-                syncToCloud();
             }
 
             updateHud();
         }
 
-        // Умный кот-бот для одиночного теста
+        function sendHostWorldState() {
+            const serializedPlayers = {};
+            for (const [pid, p] of Object.entries(state.players)) {
+                serializedPlayers[pid] = {
+                    x: Math.round(p.x),
+                    y: Math.round(p.y),
+                    angle: Number(p.angle.toFixed(2)),
+                    downed: p.downed,
+                    reviveProgress: Math.round(p.reviveProgress || 0),
+                    hidden: p.hidden,
+                    meowTimer: Number(p.meowTimer.toFixed(2))
+                };
+            }
+            conn.send({
+                type: 'world_state',
+                state: {
+                    players: serializedPlayers,
+                    foods: state.foods.map(f => f.collected),
+                    granny: {
+                        x: Math.round(state.granny.x),
+                        y: Math.round(state.granny.y),
+                        angle: Number(state.granny.angle.toFixed(2)),
+                        mode: state.granny.mode,
+                        aimTimer: Number(state.granny.aimTimer.toFixed(2)),
+                        aimAngle: Number(state.granny.aimAngle.toFixed(2)),
+                        phrase: state.granny.phrase,
+                        phraseTimer: Number(state.granny.phraseTimer.toFixed(1))
+                    }
+                }
+            });
+        }
+
+        function sendGuestInput() {
+            const me = state.players[myPlayerId];
+            if (!me) return;
+            conn.send({
+                type: 'guest_input',
+                data: {
+                    x: Math.round(me.x),
+                    y: Math.round(me.y),
+                    angle: Number(me.angle.toFixed(2)),
+                    meow: pendingMeowAction
+                }
+            });
+            pendingMeowAction = false;
+        }
+
+        function applyHostWorldState(netState) {
+            if (!netState || state.status !== 'playing') return;
+
+            // Обновляем игроков
+            for (const [pid, rp] of Object.entries(netState.players)) {
+                const localP = state.players[pid];
+                if (!localP) continue;
+                if (pid === myPlayerId) {
+                    // Хост авторитативен в вопросах оглушения и спасения
+                    if (!localP.downed && rp.downed) {
+                        showToast('💥 Бабка попала! Жди, пока друг подойдёт и спасёт!');
+                    }
+                    localP.downed = rp.downed;
+                    localP.reviveProgress = rp.reviveProgress;
+                } else {
+                    localP.targetX = rp.x;
+                    localP.targetY = rp.y;
+                    localP.angle = rp.angle;
+                    localP.downed = rp.downed;
+                    localP.reviveProgress = rp.reviveProgress;
+                    localP.hidden = rp.hidden;
+                    if (rp.meowTimer > 1.2 && localP.meowTimer <= 0.5) {
+                        sfx.playMeow(475);
+                        spawnSoundRing(rp.x, rp.y);
+                    }
+                    localP.meowTimer = rp.meowTimer;
+                }
+            }
+
+            // Обновляем еду
+            if (Array.isArray(netState.foods)) {
+                netState.foods.forEach((isCol, i) => {
+                    if (state.foods[i] && !state.foods[i].collected && isCol) {
+                        state.foods[i].collected = true;
+                        sfx.playEat();
+                        spawnFoodParticles(state.foods[i].x, state.foods[i].y);
+                    }
+                });
+            }
+
+            // Обновляем бабку
+            if (netState.granny) {
+                const prevMode = state.granny.mode;
+                Object.assign(state.granny, netState.granny);
+                if (prevMode !== 'aiming' && state.granny.mode === 'aiming') {
+                    sfx.playGrannyAlert();
+                }
+                if (prevMode === 'aiming' && state.granny.mode === 'cooldown') {
+                    sfx.playShotgun();
+                    triggerShotgunVisuals(state.granny.x, state.granny.y, state.granny.aimAngle);
+                }
+            }
+        }
+
+        // Умный кот-бот для одиночного режима
         function updateBotPartner(bot, human, dt) {
+            const collectedCount = state.foods.filter(f => f.collected).length;
             let goalX = human.x - 45;
             let goalY = human.y - 45;
 
-            // Если человек оглушён — бот бежит спасать!
             if (human.downed) {
                 goalX = human.x;
                 goalY = human.y;
+            } else if (collectedCount >= TOTAL_FOOD) {
+                // Бежим к входному коврику!
+                goalX = EXIT_MAT.x + EXIT_MAT.w / 2;
+                goalY = EXIT_MAT.y + EXIT_MAT.h / 2;
             } else {
-                // Иначе ищет ближайшую еду подальше от бабки
                 let bestDist = Infinity;
                 for (const f of state.foods) {
                     if (!f.collected) {
                         const dBot = Math.hypot(bot.x - f.x, bot.y - f.y);
                         const dGranny = Math.hypot(state.granny.x - f.x, state.granny.y - f.y);
-                        if (dGranny > 180 && dBot < bestDist) {
+                        if (dGranny > 175 && dBot < bestDist) {
                             bestDist = dBot;
                             goalX = f.x;
                             goalY = f.y;
@@ -1364,9 +1588,8 @@
                 }
             }
 
-            // Убегает, если бабка слишком близко
             const distToGranny = Math.hypot(bot.x - state.granny.x, bot.y - state.granny.y);
-            if (distToGranny < 210 && !human.downed) {
+            if (distToGranny < 200 && !human.downed) {
                 goalX = bot.x + (bot.x - state.granny.x);
                 goalY = bot.y + (bot.y - state.granny.y);
             }
@@ -1374,26 +1597,22 @@
             const dx = goalX - bot.x;
             const dy = goalY - bot.y;
             const dist = Math.hypot(dx, dy);
-            if (dist > 12) {
-                const spd = distToGranny < 220 ? 235 : 175;
+            if (dist > 10) {
+                const spd = distToGranny < 210 ? 235 : 180;
                 bot.x += (dx / dist) * spd * dt;
                 bot.y += (dy / dist) * spd * dt;
                 bot.angle = Math.atan2(dy, dx);
                 bot.animPhase = (bot.animPhase || 0) + dt * 12;
-                resolveObstacles(bot, 18);
+                resolveObstacles(bot, 17);
             }
-            bot.hidden = FURNITURE.some(f => f.hideout &&
-                bot.x > f.x + 8 && bot.x < f.x + f.w - 8 &&
-                bot.y > f.y + 8 && bot.y < f.y + f.h - 8
-            );
+            bot.hidden = isInsideHideout(bot.x, bot.y);
         }
 
-        // Логика Бабки с дробовиком
+        // ИИ Бабки с дробовиком
         function updateGrannyAI(dt) {
             const g = state.granny;
             if (g.phraseTimer > 0) g.phraseTimer = Math.max(0, g.phraseTimer - dt);
 
-            // Поиск видимого кота в конусе обзора (дальность 390px, угол ~75 градусов)
             let spottedCat = null;
             let minCatDist = Infinity;
 
@@ -1402,10 +1621,10 @@
                 const dx = cat.x - g.x;
                 const dy = cat.y - g.y;
                 const dist = Math.hypot(dx, dy);
-                if (dist < 390) {
+                if (dist < 370) {
                     const angleToCat = Math.atan2(dy, dx);
                     const diff = Math.abs(normalizeAngle(angleToCat - g.angle));
-                    if (diff < 0.68 && hasLineOfSight(g.x, g.y, cat.x, cat.y)) {
+                    if (diff < 0.66 && hasLineOfSight(g.x, g.y, cat.x, cat.y)) {
                         if (dist < minCatDist) {
                             minCatDist = dist;
                             spottedCat = cat;
@@ -1415,7 +1634,6 @@
             }
 
             if (g.mode === 'aiming') {
-                // Бабка прицеливается 0.65 сек перед выстрелом (даёт шанс спрятаться за стену!)
                 g.aimTimer -= dt;
                 if (spottedCat) {
                     g.aimAngle = Math.atan2(spottedCat.y - g.y, spottedCat.x - g.x);
@@ -1424,7 +1642,7 @@
                 if (g.aimTimer <= 0) {
                     fireGrannyShotgun();
                     g.mode = 'cooldown';
-                    g.aimTimer = 1.1;
+                    g.aimTimer = 1.15;
                 }
                 return;
             }
@@ -1448,10 +1666,9 @@
                 g.targetX = spottedCat.x;
                 g.targetY = spottedCat.y;
 
-                // Если кот на дистанции выстрела — начинаем прицеливание
-                if (minCatDist < 250) {
+                if (minCatDist < 245) {
                     g.mode = 'aiming';
-                    g.aimTimer = 0.65;
+                    g.aimTimer = 0.7;
                     g.aimAngle = Math.atan2(spottedCat.y - g.y, spottedCat.x - g.x);
                     return;
                 }
@@ -1462,10 +1679,9 @@
                 }
             }
 
-            // Движение к текущей цели (патруль, звук или погоня)
             let destX = g.targetX;
             let destY = g.targetY;
-            let moveSpeed = 140;
+            let moveSpeed = 138;
 
             if (g.mode === 'patrol') {
                 const wp = GRANNY_WAYPOINTS[g.waypointIdx % GRANNY_WAYPOINTS.length];
@@ -1480,7 +1696,7 @@
                     g.mode = 'patrol';
                 }
             } else if (g.mode === 'chase') {
-                moveSpeed = 215;
+                moveSpeed = 212;
             }
 
             const dx = destX - g.x;
@@ -1491,7 +1707,7 @@
                 g.angle += normalizeAngle(targetAngle - g.angle) * Math.min(1, dt * 7);
                 g.x += (dx / dist) * moveSpeed * dt;
                 g.y += (dy / dist) * moveSpeed * dt;
-                resolveObstacles(g, 22);
+                resolveObstacles(g, 21);
             }
         }
 
@@ -1500,13 +1716,12 @@
             sfx.playShotgun();
             triggerShotgunVisuals(g.x, g.y, g.aimAngle);
 
-            // Проверяем попадание по котам в конусе дроби (дальность 290px, угол +/- 0.34 рад)
             for (const cat of Object.values(state.players)) {
                 if (cat.downed || cat.hidden) continue;
                 const dx = cat.x - g.x;
                 const dy = cat.y - g.y;
                 const dist = Math.hypot(dx, dy);
-                if (dist < 290) {
+                if (dist < 280) {
                     const ang = Math.atan2(dy, dx);
                     if (Math.abs(normalizeAngle(ang - g.aimAngle)) < 0.36 && hasLineOfSight(g.x, g.y, cat.x, cat.y)) {
                         cat.downed = true;
@@ -1522,8 +1737,8 @@
 
         function triggerShotgunVisuals(gx, gy, angle) {
             state.camera.shake = 12;
-            const muzzleX = gx + Math.cos(angle) * 34;
-            const muzzleY = gy + Math.sin(angle) * 34;
+            const muzzleX = gx + Math.cos(angle) * 32;
+            const muzzleY = gy + Math.sin(angle) * 32;
             for (let i = 0; i < 14; i++) {
                 const spread = angle + (Math.random() - 0.5) * 0.65;
                 const spd = 650 + Math.random() * 250;
@@ -1574,7 +1789,6 @@
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
                 b.life -= dt;
-                // Остановка дроби о стены
                 for (const w of WALLS) {
                     if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + w.h) {
                         b.life = 0;
@@ -1591,48 +1805,21 @@
             }
         }
 
-        async function syncToCloud() {
-            if (!firebaseReady || !roomCode || state.status !== 'playing') return;
-            const me = state.players[myPlayerId];
-            if (!me) return;
-            try {
-                const payload = {
-                    [`players.${myPlayerId}`]: {
-                        id: me.id,
-                        name: me.name,
-                        skin: me.skin,
-                        x: Math.round(me.x),
-                        y: Math.round(me.y),
-                        angle: Number(me.angle.toFixed(2)),
-                        stamina: Math.round(me.stamina),
-                        downed: me.downed,
-                        reviveProgress: Math.round(me.reviveProgress || 0),
-                        hidden: me.hidden,
-                        meowTimer: Number(me.meowTimer.toFixed(2))
-                    }
-                };
-                if (isHost) {
-                    payload.foods = state.foods;
-                    payload.granny = {
-                        x: Math.round(state.granny.x),
-                        y: Math.round(state.granny.y),
-                        angle: Number(state.granny.angle.toFixed(2)),
-                        mode: state.granny.mode,
-                        alertLevel: Math.round(state.granny.alertLevel),
-                        aimTimer: Number(state.granny.aimTimer.toFixed(2)),
-                        aimAngle: Number(state.granny.aimAngle.toFixed(2)),
-                        phrase: state.granny.phrase,
-                        phraseTimer: Number(state.granny.phraseTimer.toFixed(1))
-                    };
-                }
-                await updateDoc(getRoomDocRef(roomCode), payload);
-            } catch (e) {
-                // Игнорируем редкие сетевые лаги
-            }
-        }
-
         function updateHud() {
             const collected = state.foods.filter(f => f.collected).length;
+            const goalIcon = document.getElementById('hudGoalIcon');
+            const goalLabel = document.getElementById('hudGoalLabel');
+
+            if (collected >= TOTAL_FOOD) {
+                goalIcon.textContent = '🚪';
+                goalLabel.textContent = 'БЕГИТЕ К ВЫХОДУ!';
+                goalLabel.className = 'text-[11px] uppercase tracking-wider text-emerald-400 font-bold animate-pulse';
+            } else {
+                goalIcon.textContent = '🐟';
+                goalLabel.textContent = 'Собрано вкусняшек';
+                goalLabel.className = 'text-[11px] uppercase tracking-wider text-slate-400';
+            }
+
             document.getElementById('hudFoodCount').textContent = collected;
             document.getElementById('hudFoodTotal').textContent = TOTAL_FOOD;
 
@@ -1646,7 +1833,7 @@
             }
         }
 
-        async function finishGame(isWin) {
+        function finishGame(isWin) {
             if (state.status === 'won' || state.status === 'lost') return;
             state.status = isWin ? 'won' : 'lost';
 
@@ -1655,11 +1842,11 @@
             const secs = String(Math.floor(state.elapsedSec % 60)).padStart(2, '0');
 
             document.getElementById('endGameEmoji').textContent = isWin ? '🏆🐱' : '👵💥';
-            document.getElementById('endGameTitle').textContent = isWin ? 'ПОБЕДА! ХОЛОДИЛЬНИК ПУСТ!' : 'БАБКА ПОЙМАЛА КОТОВ!';
+            document.getElementById('endGameTitle').textContent = isWin ? 'ПОБЕДА! ВЫЛАЗКА УДАЛАСЬ!' : 'БАБКА ПОЙМАЛА КОТОВ!';
             document.getElementById('endGameTitle').className = 'text-2xl sm:text-3xl font-black ' + (isWin ? 'text-amber-400' : 'text-rose-500');
             document.getElementById('endGameDesc').textContent = isWin
-                ? 'Вы с напарником утащили все вкусняшки и оставили бабку с носом!'
-                : 'Оба кота получили заряд соли и отправлены на коврик у двери.';
+                ? 'Вы собрали все вкусняшки и благополучно сбежали через входную дверь!'
+                : 'Оба кота получили заряд соли и отправлены спать на коврик.';
             document.getElementById('endStatFood').textContent = `${collected} / ${TOTAL_FOOD}`;
             document.getElementById('endStatTime').textContent = `${mins}:${secs}`;
             document.getElementById('endGameOverlay').classList.remove('hidden');
@@ -1667,15 +1854,13 @@
             if (isWin) sfx.playWin();
             else sfx.playShotgun();
 
-            if (gameMode === 'online' && isHost && firebaseReady) {
-                try {
-                    await updateDoc(getRoomDocRef(roomCode), { status: isWin ? 'won' : 'lost' });
-                } catch (e) {}
+            if (gameMode === 'online' && isHost && conn && conn.open) {
+                conn.send({ type: 'game_over', isWin });
             }
         }
 
         // ==========================================
-        // 9. ОТРИСОВКА (CANVAS RENDERING)
+        // 9. ОТРИСОВКА КАРТЫ, КОТОВ И БАБКИ (CANVAS)
         // ==========================================
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -1697,12 +1882,10 @@
                 ctx.fillStyle = '#fef3c7';
                 ctx.fillRect(room.x, room.y, room.w, room.h);
                 ctx.fillStyle = '#fde68a';
-                const size = 40;
+                const size = 38;
                 for (let x = room.x; x < room.x + room.w; x += size) {
                     for (let y = room.y; y < room.y + room.h; y += size) {
-                        if (((x + y) / size) % 2 === 0) {
-                            ctx.fillRect(x, y, size, size);
-                        }
+                        if (((x + y) / size) % 2 === 0) ctx.fillRect(x, y, size, size);
                     }
                 }
             } else if (room.floor === 'tile_bath') {
@@ -1710,10 +1893,10 @@
                 ctx.fillRect(room.x, room.y, room.w, room.h);
                 ctx.strokeStyle = '#bae6fd';
                 ctx.lineWidth = 2;
-                for (let x = room.x; x < room.x + room.w; x += 36) {
+                for (let x = room.x; x < room.x + room.w; x += 34) {
                     ctx.beginPath(); ctx.moveTo(x, room.y); ctx.lineTo(x, room.y + room.h); ctx.stroke();
                 }
-                for (let y = room.y; y < room.y + room.h; y += 36) {
+                for (let y = room.y; y < room.y + room.h; y += 34) {
                     ctx.beginPath(); ctx.moveTo(room.x, y); ctx.lineTo(room.x + room.w, y); ctx.stroke();
                 }
             } else if (room.floor === 'wood_hall') {
@@ -1721,16 +1904,15 @@
                 ctx.fillRect(room.x, room.y, room.w, room.h);
                 ctx.strokeStyle = '#b88658';
                 ctx.lineWidth = 2;
-                for (let y = room.y; y < room.y + room.h; y += 28) {
+                for (let y = room.y; y < room.y + room.h; y += 26) {
                     ctx.beginPath(); ctx.moveTo(room.x, y); ctx.lineTo(room.x + room.w, y); ctx.stroke();
                 }
             } else if (room.floor === 'carpet_living') {
                 ctx.fillStyle = '#c49a6c';
                 ctx.fillRect(room.x, room.y, room.w, room.h);
-                // Уютный ковёр в центре гостиной
                 ctx.fillStyle = '#991b1b';
                 ctx.beginPath();
-                ctx.roundRect(room.x + 120, room.y + 110, room.w - 240, room.h - 200, 24);
+                ctx.roundRect(room.x + 110, room.y + 95, room.w - 220, room.h - 180, 22);
                 ctx.fill();
                 ctx.strokeStyle = '#fbbf24';
                 ctx.lineWidth = 4;
@@ -1740,16 +1922,32 @@
                 ctx.fillRect(room.x, room.y, room.w, room.h);
                 ctx.fillStyle = '#6366f1';
                 ctx.beginPath();
-                ctx.roundRect(room.x + 160, room.y + 80, room.w - 240, room.h - 140, 24);
+                ctx.roundRect(room.x + 140, room.y + 70, room.w - 220, room.h - 130, 22);
                 ctx.fill();
             }
 
-            // Название комнаты водяным знаком на полу
             ctx.fillStyle = 'rgba(15, 23, 42, 0.14)';
-            ctx.font = '900 28px Rubik, sans-serif';
+            ctx.font = '900 26px Rubik, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(room.name, room.x + room.w / 2, room.y + room.h / 2 + 10);
+            ctx.restore();
+        }
 
+        function drawExitMat() {
+            const allFoodCollected = state.foods.filter(f => f.collected).length >= TOTAL_FOOD;
+            ctx.save();
+            ctx.fillStyle = allFoodCollected ? '#10b981' : '#78350f';
+            ctx.strokeStyle = allFoodCollected ? '#fef08a' : '#451a03';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(EXIT_MAT.x, EXIT_MAT.y, EXIT_MAT.w, EXIT_MAT.h, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '900 12px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(allFoodCollected ? '🚪 ВЫХОД ОТКРЫТ!' : '🚪 КОВРИК ВЫХОДА', EXIT_MAT.x + EXIT_MAT.w / 2, EXIT_MAT.y + 38);
             ctx.restore();
         }
 
@@ -1758,29 +1956,25 @@
             ctx.save();
             ctx.translate(cat.x, cat.y);
 
-            if (cat.hidden) {
-                ctx.globalAlpha = 0.45;
-            }
+            if (cat.hidden) ctx.globalAlpha = 0.42;
 
             // Тень
             ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
             ctx.beginPath();
-            ctx.ellipse(0, 6, 19, 14, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 6, 18, 13, 0, 0, Math.PI * 2);
             ctx.fill();
 
             if (cat.downed) {
-                // Оглушённый кот лежит на боку со звёздочками
                 ctx.rotate(Math.PI / 2);
                 ctx.fillStyle = skin.body;
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 20, 14, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, 19, 13, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = '#1e293b';
                 ctx.lineWidth = 2.5;
                 ctx.stroke();
                 ctx.restore();
 
-                // Индикатор спасения и звёздочки
                 ctx.save();
                 ctx.translate(cat.x, cat.y);
                 const t = performance.now() * 0.005;
@@ -1789,7 +1983,7 @@
                 ctx.fillText('💫', Math.cos(t) * 14, -24 + Math.sin(t) * 4);
                 ctx.fillStyle = '#facc15';
                 ctx.font = 'bold 12px Rubik, sans-serif';
-                ctx.fillText('ОГЛУШЁН! Подойди спасти', 0, -38);
+                ctx.fillText('ОГЛУШЁН! Подойди поднять', 0, -38);
 
                 if (cat.reviveProgress > 0) {
                     ctx.fillStyle = '#1e293b';
@@ -1804,28 +1998,28 @@
             ctx.save();
             ctx.rotate(cat.angle);
 
-            // Виляющий хвост
+            // Хвост
             const wag = Math.sin((cat.animPhase || 0) * 0.8) * 0.45;
             ctx.strokeStyle = skin.body;
-            ctx.lineWidth = 6;
+            ctx.lineWidth = 5.5;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(-14, 0);
-            ctx.quadraticCurveTo(-26, Math.sin(wag) * 14, -34, Math.sin(wag) * 18);
+            ctx.moveTo(-13, 0);
+            ctx.quadraticCurveTo(-24, Math.sin(wag) * 13, -32, Math.sin(wag) * 17);
             ctx.stroke();
 
-            // Лапки при беге
-            const step = Math.sin(cat.animPhase || 0) * 6;
+            // Лапки
+            const step = Math.sin(cat.animPhase || 0) * 5.5;
             ctx.fillStyle = skin.stripe;
-            ctx.beginPath(); ctx.arc(10 + step, -12, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(10 - step, 12, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(-8 - step, -12, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(-8 + step, 12, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(9 + step, -11, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(9 - step, 11, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-7 - step, -11, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-7 + step, 11, 4.5, 0, Math.PI * 2); ctx.fill();
 
-            // Тело кота
+            // Тело
             ctx.fillStyle = skin.body;
             ctx.beginPath();
-            ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 19, 14, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#1e293b';
             ctx.lineWidth = 2.5;
@@ -1833,45 +2027,44 @@
 
             // Голова
             ctx.beginPath();
-            ctx.arc(11, 0, 12, 0, Math.PI * 2);
+            ctx.arc(10, 0, 11.5, 0, Math.PI * 2);
             ctx.fillStyle = skin.body;
             ctx.fill();
             ctx.stroke();
 
-            // Треугольные ушки
+            // Ушки
             ctx.fillStyle = skin.body;
-            ctx.beginPath(); ctx.moveTo(12, -11); ctx.lineTo(20, -14); ctx.lineTo(17, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(12, 11); ctx.lineTo(20, 14); ctx.lineTo(17, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(11, -10); ctx.lineTo(19, -13); ctx.lineTo(16, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(11, 10); ctx.lineTo(19, 13); ctx.lineTo(16, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
 
             // Глазки
             ctx.fillStyle = '#10b981';
-            ctx.beginPath(); ctx.arc(17, -4, 2.5, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(17, 4, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(16, -3.5, 2.4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(16, 3.5, 2.4, 0, Math.PI * 2); ctx.fill();
 
             ctx.restore();
 
-            // Имя кота над головой
+            // Имя кота
             ctx.globalAlpha = 1;
             ctx.font = 'bold 12px Rubik, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
             const nameText = cat.hidden ? `🥷 ${cat.name}` : cat.name;
             const tw = ctx.measureText(nameText).width + 12;
             ctx.beginPath();
-            ctx.roundRect(-tw / 2, -36, tw, 18, 8);
+            ctx.roundRect(-tw / 2, -35, tw, 18, 8);
             ctx.fill();
             ctx.fillStyle = cat.id === myPlayerId ? '#fbbf24' : '#f8fafc';
-            ctx.fillText(nameText, 0, -23);
+            ctx.fillText(nameText, 0, -22);
 
-            // Облачко "МЯУ!"
             if (cat.meowTimer > 0.7) {
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
-                ctx.roundRect(-28, -64, 56, 22, 10);
+                ctx.roundRect(-28, -62, 56, 21, 10);
                 ctx.fill();
                 ctx.fillStyle = '#0f172a';
                 ctx.font = '900 12px Rubik, sans-serif';
-                ctx.fillText('МЯУ! 🎵', 0, -49);
+                ctx.fillText('МЯУ! 🎵', 0, -48);
             }
 
             ctx.restore();
@@ -1881,9 +2074,9 @@
             const g = state.granny;
             ctx.save();
 
-            // 1. Конус обзора бабки
-            const coneDist = 380;
-            const coneHalfAngle = 0.65;
+            // Конус обзора
+            const coneDist = 365;
+            const coneHalfAngle = 0.64;
             const grad = ctx.createRadialGradient(g.x, g.y, 15, g.x, g.y, coneDist);
             if (g.mode === 'chase' || g.mode === 'aiming') {
                 grad.addColorStop(0, 'rgba(239, 68, 68, 0.36)');
@@ -1899,68 +2092,67 @@
             ctx.closePath();
             ctx.fill();
 
-            // 2. Предупреждающий прицел дробовика перед выстрелом!
+            // Лазерный прицел перед выстрелом
             if (g.mode === 'aiming') {
                 ctx.save();
-                ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
                 ctx.lineWidth = 3;
                 ctx.setLineDash([10, 8]);
                 ctx.beginPath();
                 ctx.moveTo(g.x, g.y);
-                ctx.lineTo(g.x + Math.cos(g.aimAngle) * 290, g.y + Math.sin(g.aimAngle) * 290);
+                ctx.lineTo(g.x + Math.cos(g.aimAngle) * 280, g.y + Math.sin(g.aimAngle) * 280);
                 ctx.stroke();
 
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.24)';
                 ctx.beginPath();
                 ctx.moveTo(g.x, g.y);
-                ctx.arc(g.x, g.y, 290, g.aimAngle - 0.34, g.aimAngle + 0.34);
+                ctx.arc(g.x, g.y, 280, g.aimAngle - 0.34, g.aimAngle + 0.34);
                 ctx.closePath();
                 ctx.fill();
                 ctx.restore();
             }
 
-            // 3. Сама Бабка
+            // Фигура Бабки
             ctx.translate(g.x, g.y);
             ctx.save();
             ctx.rotate(g.angle);
 
-            // Тень
             ctx.fillStyle = 'rgba(0,0,0,0.32)';
             ctx.beginPath();
-            ctx.arc(0, 4, 24, 0, Math.PI * 2);
+            ctx.arc(0, 4, 23, 0, Math.PI * 2);
             ctx.fill();
 
-            // Двустволка в руках
+            // Двустволка
             ctx.fillStyle = '#78350f';
-            ctx.fillRect(8, 6, 20, 7);
+            ctx.fillRect(8, 6, 19, 7);
             ctx.fillStyle = '#334155';
-            ctx.fillRect(22, 6, 24, 6);
+            ctx.fillRect(21, 6, 23, 6);
 
-            // Халат в цветочек
+            // Халат
             ctx.fillStyle = '#7e22ce';
             ctx.beginPath();
-            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.arc(0, 0, 21, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#3b0764';
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            // Платок на голове
+            // Платок
             ctx.fillStyle = '#f43f5e';
             ctx.beginPath();
-            ctx.arc(2, 0, 14, 0, Math.PI * 2);
+            ctx.arc(2, 0, 13.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // Седой пучок сзади
+            // Пучок волос
             ctx.fillStyle = '#e2e8f0';
             ctx.beginPath();
-            ctx.arc(-11, 0, 6, 0, Math.PI * 2);
+            ctx.arc(-10, 0, 5.5, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.restore();
 
-            // Крик бабки в облачке над головой
+            // Реплика бабки
             if (g.phraseTimer > 0 && g.phrase) {
                 ctx.font = 'bold 13px Rubik, sans-serif';
                 ctx.textAlign = 'center';
@@ -1969,19 +2161,19 @@
                 ctx.strokeStyle = '#e11d48';
                 ctx.lineWidth = 2.5;
                 ctx.beginPath();
-                ctx.roundRect(-pw / 2, -56, pw, 26, 12);
+                ctx.roundRect(-pw / 2, -54, pw, 25, 12);
                 ctx.fill();
                 ctx.stroke();
 
                 ctx.fillStyle = '#9f1239';
-                ctx.fillText(g.phrase, 0, -39);
+                ctx.fillText(g.phrase, 0, -37);
             }
 
             ctx.restore();
         }
 
         function render() {
-            ctx.fillStyle = '#14121d';
+            ctx.fillStyle = '#161320';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
@@ -1989,12 +2181,11 @@
             const shakeY = state.camera.shake ? (Math.random() - 0.5) * state.camera.shake : 0;
             ctx.translate(-state.camera.x + shakeX, -state.camera.y + shakeY);
 
-            // 1. Полы комнат
-            for (const room of ROOMS) {
-                drawFloorPattern(room);
-            }
+            // 1. Полы комнат и коврик выхода
+            for (const room of ROOMS) drawFloorPattern(room);
+            drawExitMat();
 
-            // 2. Твёрдая мебель (под котами)
+            // 2. Твёрдая мебель
             for (const f of FURNITURE) {
                 if (!f.hideout) {
                     ctx.fillStyle = f.color;
@@ -2004,27 +2195,27 @@
                     ctx.roundRect(f.x, f.y, f.w, f.h, 12);
                     ctx.fill();
                     ctx.stroke();
-                    ctx.font = '24px sans-serif';
+                    ctx.font = '22px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillText(f.icon, f.x + f.w / 2, f.y + f.h / 2 + 8);
                 }
             }
 
-            // 3. Еда на карте
+            // 3. Еда
             const bob = Math.sin(performance.now() * 0.006) * 4;
             for (const food of state.foods) {
                 if (food.collected) continue;
-                ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.28)';
                 ctx.beginPath();
-                ctx.arc(food.x, food.y, 18, 0, Math.PI * 2);
+                ctx.arc(food.x, food.y, 17, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.font = '26px sans-serif';
+                ctx.font = '24px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(food.emoji, food.x, food.y + 8 + bob);
             }
 
-            // 4. Звуковые волны от "Мяу!"
+            // 4. Звуковые волны "Мяу!"
             for (const ring of state.soundRings) {
                 ctx.strokeStyle = `rgba(251, 191, 36, ${ring.alpha})`;
                 ctx.lineWidth = 3;
@@ -2033,12 +2224,10 @@
                 ctx.stroke();
             }
 
-            // 5. Коты (игроки)
-            for (const cat of Object.values(state.players)) {
-                drawCat(cat);
-            }
+            // 5. Коты
+            for (const cat of Object.values(state.players)) drawCat(cat);
 
-            // 6. Мебель-укрытия (рисуется поверх котов, чтобы создавать эффект пряток под столом/кроватью)
+            // 6. Мебель-укрытия поверх котов
             for (const f of FURNITURE) {
                 if (f.hideout) {
                     ctx.save();
@@ -2050,17 +2239,17 @@
                     ctx.roundRect(f.x, f.y, f.w, f.h, 14);
                     ctx.fill();
                     ctx.stroke();
-                    ctx.font = '26px sans-serif';
+                    ctx.font = '24px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillText(f.icon, f.x + f.w / 2, f.y + f.h / 2 + 8);
                     ctx.restore();
                 }
             }
 
-            // 7. Бабка с дробовиком
+            // 7. Бабка
             drawGranny();
 
-            // 8. Стены квартиры
+            // 8. Стены
             for (const w of WALLS) {
                 ctx.fillStyle = '#334155';
                 ctx.fillRect(w.x, w.y, w.w, w.h);
@@ -2089,7 +2278,7 @@
         }
 
         // ==========================================
-        // 10. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (60 FPS)
+        // 10. ИГРОВОЙ ЦИКЛ (60 FPS)
         // ==========================================
         let lastFrameTime = performance.now();
         function gameLoop(now) {
@@ -2100,9 +2289,8 @@
                 updateGame(dt);
                 render();
             } else {
-                // Фоновая красивая отрисовка карты за лобби
-                state.camera.x = 240 + Math.sin(now * 0.0003) * 180;
-                state.camera.y = 180 + Math.cos(now * 0.00025) * 120;
+                state.camera.x = 200 + Math.sin(now * 0.0003) * 160;
+                state.camera.y = 160 + Math.cos(now * 0.00025) * 110;
                 render();
             }
 
