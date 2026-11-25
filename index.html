@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Две кошки против Бабушки</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #2c221e;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #hud {
+      width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #3d302b;
+      border-radius: 10px 10px 0 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .p1-info { color: #ffb347; }
+    .p2-info { color: #87cefa; }
+    canvas {
+      background: #e6d5b8;
+      border: 4px solid #3d302b;
+      border-radius: 0 0 10px 10px;
+      display: block;
+    }
+    #controls {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ccc;
+      display: flex;
+      gap: 30px;
+    }
+    #overlay {
+      position: absolute;
+      background: rgba(25, 20, 18, 0.9);
+      padding: 30px 40px;
+      border-radius: 14px;
+      text-align: center;
+      border: 2px solid #ffb347;
+    }
+    #overlay h1 { margin-bottom: 10px; font-size: 28px; }
+    #overlay p { margin-bottom: 20px; color: #ddd; line-height: 1.5; }
+    button {
+      background: #ff8c42;
+      color: #fff;
+      border: none;
+      padding: 12px 26px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #ff7315; }
+  </style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="p1-info">🐱 Рыжик: <span id="score1">0</span></div>
+    <div>⏱ Время: <span id="timer">0</span>с</div>
+    <div class="p2-info">🐱 Дымок: <span id="score2">0</span></div>
+  </div>
+
+  <canvas id="game" width="800" height="540"></canvas>
+
+  <div id="controls">
+    <span><b style="color:#ffb347">Рыжик:</b> W A S D</span>
+    <span><b style="color:#87cefa">Дымок:</b> Стрелки ↑ ↓ ← →</span>
+    <span>🐟 Собирайте рыбку и спасайте друг друга касанием!</span>
+  </div>
+
+  <div id="overlay">
+    <h1 id="title">Кошачий побег! 🐾</h1>
+    <p id="desc">Убегайте от бабушки, прячьтесь за мебелью и собирайте рыбок.<br>Если бабушка поймает одного — второй может его спасти, коснувшись!</p>
+    <button onclick="startGame()">Играть</button>
+  </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+    e.preventDefault();
+  }
+  keys[e.code] = true;
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// Мебель (препятствия)
+const walls = [
+  { x: 140, y: 110, w: 130, h: 70, label: 'Диван' },
+  { x: 530, y: 110, w: 130, h: 70, label: 'Стол' },
+  { x: 340, y: 230, w: 120, h: 80, label: 'Ковёр-гора' },
+  { x: 140, y: 360, w: 130, h: 70, label: 'Шкаф' },
+  { x: 530, y: 360, w: 130, h: 70, label: 'Кровать' }
+];
+
+let cats, granny, fish, startTime, running = false;
+
+function startGame() {
+  cats = [
+    { x: 70, y: 70, r: 16, speed: 3.4, color: '#ff9f1c', score: 0, frozen: false, up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD' },
+    { x: 730, y: 470, r: 16, speed: 3.4, color: '#4ea8de', score: 0, frozen: false, up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }
+  ];
+  granny = { x: 400, y: 60, r: 22, speed: 2.0 };
+  fish = spawnFish();
+  startTime = Date.now();
+  running = true;
+  overlay.style.display = 'none';
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+
+function spawnFish() {
+  let fx, fy, valid;
+  do {
+    valid = true;
+    fx = 40 + Math.random() * (canvas.width - 80);
+    fy = 40 + Math.random() * (canvas.height - 80);
+    for (const w of walls) {
+      if (fx > w.x - 20 && fx < w.x + w.w + 20 && fy > w.y - 20 && fy  !c.frozen);
+  if (activeCats.length === 0) {
+    endGame(elapsed);
+    return;
+  }
+
+  let target = activeCats[0];
+  if (activeCats.length > 1 && dist(granny, activeCats[1]) < dist(granny, activeCats[0])) {
+    target = activeCats[1];
+  }
+
+  const angle = Math.atan2(target.y - granny.y, target.x - granny.x);
+  moveWithWalls(granny, Math.cos(angle) * granny.speed, Math.sin(angle) * granny.speed);
+
+  // Поимка кота
+  for (const c of activeCats) {
+    if (dist(granny, c) < granny.r + c.r - 4) {
+      c.frozen = true;
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Пол (плитка)
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  for (let x = 0; x < canvas.width; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  // Мебель
+  for (const w of walls) {
+    ctx.fillStyle = '#8d6e63';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.strokeStyle = '#5d4037';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(w.x, w.y, w.w, w.h);
+    ctx.fillStyle = '#efebe9';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(w.label, w.x + w.w / 2, w.y + w.h / 2 + 4);
+  }
+
+  // Рыбка
+  ctx.font = '24px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🐟', fish.x, fish.y + 8);
+
+  // Кошки
+  for (const c of cats) {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.fillStyle = c.frozen ? '#90a4ae' : c.color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#222';
+    ctx.stroke();
+
+    ctx.font = '20px serif';
+    ctx.fillText(c.frozen ? '🕸️' : '🐱', c.x, c.y + 7);
+  }
+
+  // Бабушка
+  ctx.beginPath();
+  ctx.arc(granny.x, granny.y, granny.r, 0, Math.PI * 2);
+  ctx.fillStyle = '#d32f2f';
+  ctx.fill();
+  ctx.font = '28px serif';
+  ctx.fillText('👵', granny.x, granny.y + 9);
+}
+
+function updateHUD() {
+  document.getElementById('score1').textContent = cats[0].score;
+  document.getElementById('score2').textContent = cats[1].score;
+}
+
+function endGame(seconds) {
+  running = false;
+  document.getElementById('title').textContent = 'Бабушка всех поймала! 🧹';
+  document.getElementById('desc').innerHTML =
+    `Вы продержались <b>${seconds} сек.</b><br>` +
+    `Рыжик поймал рыбок: <b>${cats[0].score}</b> | Дымок поймал рыбок: <b>${cats[1].score}</b>`;
+  overlay.style.display = 'block';
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
